@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { validateMeeting } = require('../validators/meetingValidator');
 const { processTranscriptWithAI } = require('../services/aiService');
 const { extractPdfTextWithReadingOrder } = require('../utils/pdfExtractor');
+const { extractParticipantsFromTranscript } = require('../utils/aiSafetyValidator');
 
 /**
  * Helper to safely parse JSON or array values without throwing unhandled exceptions.
@@ -269,15 +270,22 @@ const processMeetingAI = async (req, res, next) => {
     // Call AI processing service (with auto validation & fallback)
     const aiResult = await processTranscriptWithAI(meeting.transcript);
 
+    // Auto extract participants if currently empty or missing
+    const autoParticipants = extractParticipantsFromTranscript(meeting.transcript);
+    const finalParticipants = (!meeting.participants || !meeting.participants.trim()) && autoParticipants
+      ? autoParticipants
+      : meeting.participants;
+
     // Save structured details in meeting record
     await prisma.meeting.update({
       where: { id },
       data: {
         summary: aiResult.summary,
-        discussionPoints: JSON.stringify(aiResult.discussionPoints),
-        decisions: JSON.stringify(aiResult.decisions),
-        risks: JSON.stringify(aiResult.risks),
-        unansweredQuestions: JSON.stringify(aiResult.unansweredQuestions)
+        participants: finalParticipants,
+        discussionPoints: JSON.stringify(aiResult.discussionPoints || []),
+        decisions: JSON.stringify(aiResult.decisions || []),
+        risks: JSON.stringify(aiResult.risks || []),
+        unansweredQuestions: JSON.stringify(aiResult.unansweredQuestions || [])
       }
     });
 

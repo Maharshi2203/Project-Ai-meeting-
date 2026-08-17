@@ -69,9 +69,68 @@ function isQuestionTask(taskText) {
 }
 
 /**
+ * Helper to identify transcript header metadata lines (e.g. "Participants:", "Date:", "Meeting Type:")
+ * which should be filtered out from discussion points.
+ */
+function isHeaderMetadataLine(line) {
+  if (!line || typeof line !== 'string') return true;
+  const lower = line.toLowerCase().trim();
+  if (
+    lower.startsWith('participants') ||
+    lower.startsWith('date:') ||
+    lower.startsWith('meeting type:') ||
+    lower.startsWith('title:') ||
+    lower.startsWith('sample meeting transcript') ||
+    (lower.endsWith(':') && lower.length < 30) ||
+    /^date\s*:/i.test(lower) ||
+    /^participants?\s*:/i.test(lower) ||
+    /^meeting\s+type\s*:/i.test(lower)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Automatically extract participant names from transcript text.
+ * Handles explicit headers like "Participants: maria,james,neha" or dialogue speaker tags "Maria:".
+ */
+function extractParticipantsFromTranscript(transcriptText) {
+  if (!transcriptText || typeof transcriptText !== 'string') return '';
+
+  // 1. Check for explicit "Participants: ..." header in transcript
+  const match = transcriptText.match(/participants?\s*:\s*([^\n\r]+)/i);
+  if (match && match[1].trim()) {
+    const rawStr = match[1].trim();
+    const names = rawStr
+      .split(/[,;&|]|\band\b/i)
+      .map(n => n.trim().replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, ''))
+      .filter(n => n.length >= 2 && !isBlacklistedOwner(n));
+
+    if (names.length > 0) {
+      return names.join(', ');
+    }
+  }
+
+  // 2. Infer participants from dialogue speaker prefixes (e.g. "Maria:", "James:")
+  const speakerMatches = Array.from(transcriptText.matchAll(/^([A-Z][a-zA-Z0-9_\s]{1,20}):/gm));
+  const uniqueSpeakers = Array.from(new Set(
+    speakerMatches
+      .map(m => m[1].trim())
+      .filter(n => !isBlacklistedOwner(n) && !['Participants', 'Date', 'Meeting Type', 'Title', 'Note', 'Summary'].includes(n))
+  ));
+
+  if (uniqueSpeakers.length > 0) {
+    return uniqueSpeakers.join(', ');
+  }
+
+  return '';
+}
+
+/**
  * Safety Net Validation for AI Structured Output.
  * Filters out question tasks from actionItems, converts suspicious owners to 'Unassigned',
- * and moves question tasks into unansweredQuestions array.
+ * strips header lines from discussion points, and moves question tasks into unansweredQuestions array.
  */
 function enforceBusinessRulesOnAIOutput(aiOutput) {
   if (!aiOutput || typeof aiOutput !== 'object') {
@@ -131,8 +190,13 @@ function enforceBusinessRulesOnAIOutput(aiOutput) {
     });
   });
 
+  // Filter out transcript metadata header lines from discussion points
+  const rawDiscussionPoints = Array.isArray(aiOutput.discussionPoints) ? aiOutput.discussionPoints : [];
+  const cleanDiscussionPoints = rawDiscussionPoints.filter(dp => !isHeaderMetadataLine(dp));
+
   return {
     ...aiOutput,
+    discussionPoints: cleanDiscussionPoints,
     actionItems: validActionItems,
     unansweredQuestions
   };
@@ -142,5 +206,7 @@ module.exports = {
   isBlacklistedOwner,
   sanitizeOwner,
   isQuestionTask,
+  isHeaderMetadataLine,
+  extractParticipantsFromTranscript,
   enforceBusinessRulesOnAIOutput
 };

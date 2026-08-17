@@ -2,13 +2,13 @@
  * Mock AI Service for development/offline testing.
  * Performs heuristic transcript analysis to extract structured meeting intelligence with evidence.
  */
-const { isBlacklistedOwner, isQuestionTask } = require('../utils/aiSafetyValidator');
+const { isBlacklistedOwner, isQuestionTask, isHeaderMetadataLine } = require('../utils/aiSafetyValidator');
 
 function analyzeTranscriptMock(transcript) {
-  const lines = transcript
+  const lines = (transcript || '')
     .split(/\n|\./)
     .map(line => line.trim())
-    .filter(line => line.length > 5);
+    .filter(line => line.length > 5 && !isHeaderMetadataLine(line));
 
   const discussionPoints = [];
   const decisions = [];
