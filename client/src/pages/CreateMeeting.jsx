@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { meetingService } from '../services/meetingService';
 import RichTextEditor from '../components/common/RichTextEditor';
-import { ArrowLeft, Save, Upload, FileText, AlertCircle, File } from 'lucide-react';
+import { ArrowLeft, Save, Upload, FileText, AlertCircle, File, Loader2 } from 'lucide-react';
 
 const MEETING_TYPES = [
   'Client Meeting',
@@ -106,7 +106,29 @@ const CreateMeeting = () => {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative' }}>
+      {/* Upload/Save Loading Overlay */}
+      {loading && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(11, 15, 23, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1.5rem'
+        }}>
+          <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '2.5rem', textAlign: 'center' }}>
+            <Loader2 size={40} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem', display: 'inline-block' }} />
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Creating Meeting...</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+              {inputMethod === 'file' ? 'Extracting document text and saving meeting details...' : 'Saving meeting record and transcript...'}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Header Back Button */}
       <div style={{ marginBottom: '1.5rem' }}>
         <Link to="/meetings" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>

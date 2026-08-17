@@ -1,160 +1,215 @@
-# AI Meeting Notes & Action Tracker
+# MeetMind AI — AI Meeting Intelligence & Action Tracker
 
-**AI Meeting Notes & Action Tracker** is a production-quality, full-stack post-meeting productivity web application. It transforms raw meeting transcripts (entered via rich text or uploaded as `.txt` files) into structured meeting intelligence—including executive summaries, discussion points, key decisions, risks, unanswered questions, and extracted action items with owner, priority, and due date tracking.
+> **Turn conversations into accountable actions.**
 
----
-
-## Technology Stack
-
-- **Frontend**: React, Vite, React Router v6, Axios, Lucide Icons, Custom CSS Design System with HSL Theme Tokens (Dark & Light Mode).
-- **Backend**: Node.js, Express.js, REST APIs, JWT authentication, `bcryptjs` password hashing, Multer file upload handling, Centralized Express error handler.
-- **Database & ORM**: MySQL database (`ai_meeting_db` on port 3306) via Prisma ORM with relational foreign key cascading.
-- **AI Integration**: Backend AI Service supporting Google Gemini API (`@google/generative-ai`) with automatic fallback to an Intelligent Local NLP Mock Provider for offline or keyless execution.
+MeetMind AI is a production-grade, mobile-first SaaS web application designed to convert unstructured post-meeting transcripts into validated AI intelligence, key decisions, risks, unanswered questions, and source-backed action items with strict owner accountability.
 
 ---
 
-## Primary Features
+## 🚀 Key Features
 
-1. **Authentication**: Secure JWT registration, login, session persistence, password hashing (`bcryptjs`), protected routes, and multi-tenant user data isolation.
-2. **Meeting Management**: Complete CRUD for post-meeting records supporting titles, dates, types (Client, Sales, Project, Internal, etc.), participants, and transcript storage.
-3. **Dual Transcript Input**: Rich text format editor for pasting transcript text OR direct upload of plain text (`.txt`) transcript files with server-side validation.
-4. **AI Transcript Processing Engine**: Structured AI prompt forcing strict JSON generation (summary, discussion points, decisions, risks, unanswered questions, action items) with schema validation and retry support.
-5. **Central Action Tracker**: Cross-meeting task management board with search, status filters (Open, In Progress, Blocked, Completed), priority filters, owner filters, and automatic overdue task detection (`dueDate < today` & `status !== Completed`).
-6. **Executive Dashboard**: KPI summary cards for Total Meetings, Total Actions, Open Tasks, Completed Tasks, and Overdue Tasks alongside recently created meetings.
-7. **SaaS UI & Theme Switching**: Modern responsive layout with glassmorphic cards, mobile navigation drawer, and instant Dark / Light mode toggle persisted in `localStorage`.
+- **End-to-End Authentication**: JWT bearer tokens, bcrypt password hashing, input validation, and user isolation.
+- **Transcript Management**: Direct text input via rich text editor or plain text (`.txt`) file upload processing.
+- **AI Processing Pipeline**: Server-side LLM integration (Google Gemini 1.5 Flash) with fallback Mock AI provider (`AI_PROVIDER=mock`).
+- **Strict Veracity & Grounding**: Prompt engineering rules enforcing strict adherence to transcript text; no invented facts, people, or deadlines.
+- **Evidence & Source Traceability (Signature Feature)**:
+  - Every decision and action item includes verbatim supporting transcript evidence.
+  - Interactive **"View in transcript"** buttons automatically open, scroll to, and highlight the exact text in the meeting transcript.
+  - **✓ Source-backed** status badges.
+- **Accountability Action Tracker**:
+  - Dedicated task management dashboard supporting multi-filter search (Status, Priority, Owner, Overdue).
+  - Overdue tracking with visual status warnings (`due_date < today AND status != Completed`).
+  - Mobile-responsive table & card transformations.
+- **Executive Dashboard & Action Health**:
+  - Metrics overview (Total Meetings, Total Actions, Open Tasks, Completed, Overdue).
+  - **Action Health Breakdown** calculating real-time `% On Track` health scores and status distribution.
+- **Modern Responsive SaaS UI**:
+  - Mobile-first responsive layout (320px–1440px+ viewports).
+  - Dark Mode & Light Mode support with CSS design tokens persisted in `localStorage`.
 
 ---
 
-## Architecture Diagram
+## 🛠 Technology Stack
 
-```text
-React (Vite Frontend)
-   ↓ Axios (Bearer JWT Header)
-Express REST API (Backend Server: 5001)
-   ↓ Auth & Tenant Isolation Middleware
-Prisma ORM (SQLite / MySQL Database)
-   ↓ AI Service Dispatcher
-Google Gemini API OR Local Mock AI Provider
+### Frontend
+- **Framework**: React 18 (Vite)
+- **Routing**: React Router DOM v6
+- **HTTP Client**: Axios
+- **Icons**: Lucide React
+- **Styling**: Vanilla CSS Design Tokens (`index.css`), HSL colors, CSS Variables
+
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **ORM**: Prisma ORM v5
+- **Database**: MySQL 8.0
+- **Authentication**: JSON Web Tokens (JWT) + `bcryptjs`
+- **File Upload**: `multer` & `pdf-parse`
+
+### AI Services
+- **AI Provider**: Google Generative AI (`@google/generative-ai`)
+- **Model**: `gemini-1.5-flash` (Configurable via `AI_MODEL`)
+- **Fallback**: Mock AI Heuristic Service (`src/services/mockAiService.js`)
+
+---
+
+## 🏗 High-Level Architecture
+
+```
+[ React 18 + Vite Frontend ]
+           │
+           │  HTTPS / REST API (JWT Bearer Auth)
+           ▼
+[ Node.js + Express Server ]
+     │               │
+     │ Prisma ORM    │ Server-side API Key
+     ▼               ▼
+[ MySQL 8.0 ]   [ Google Gemini 1.5 API ]
+                     │
+                     ▼
+           [ Output Sanitization & Validation ]
 ```
 
 ---
 
-## Database Design
+## 🗄 Database Schema (Prisma / MySQL)
 
-### `users`
-- `id`: String (UUID, Primary Key)
-- `name`: String
-- `email`: String (Unique)
-- `passwordHash`: String
-- `createdAt`, `updatedAt`: DateTime
+### `users` Table
+- `id` (UUID, Primary Key)
+- `name` (String)
+- `email` (String, Unique)
+- `passwordHash` (String)
+- `createdAt` / `updatedAt` (DateTime)
 
-### `meetings`
-- `id`: String (UUID, Primary Key)
-- `userId`: String (Foreign Key -> `users.id`, Cascade Delete)
-- `title`: String
-- `meetingDate`: DateTime
-- `meetingType`: String
-- `participants`: String
-- `transcript`: Text
-- `summary`: Text
-- `discussionPoints`: JSON String Array
-- `decisions`: JSON String Array
-- `risks`: JSON String Array
-- `unansweredQuestions`: JSON String Array
-- `createdAt`, `updatedAt`: DateTime
+### `meetings` Table
+- `id` (UUID, Primary Key)
+- `userId` (String, FK -> `users.id`)
+- `title` (String)
+- `meetingDate` (DateTime)
+- `meetingType` (String)
+- `participants` (String)
+- `transcript` (Text)
+- `summary` (Text, optional)
+- `discussionPoints` (JSON Text, optional)
+- `decisions` (JSON Text, optional)
+- `risks` (JSON Text, optional)
+- `unansweredQuestions` (JSON Text, optional)
+- `createdAt` / `updatedAt` (DateTime)
 
-### `action_items`
-- `id`: String (UUID, Primary Key)
-- `meetingId`: String (Foreign Key -> `meetings.id`, Cascade Delete)
-- `userId`: String (Foreign Key -> `users.id`, Cascade Delete)
-- `task`: String
-- `owner`: String (Defaults to "Unassigned")
-- `dueDate`: DateTime (Nullable)
-- `priority`: String ("Low", "Medium", "High")
-- `status`: String ("Open", "In Progress", "Blocked", "Completed")
-- `createdAt`, `updatedAt`: DateTime
-
----
-
-## API Endpoint Overview
-
-### Auth
-- `POST /api/auth/register` — Register a new account
-- `POST /api/auth/login` — Authenticate and receive JWT token
-- `GET  /api/auth/me` — Retrieve current authenticated user profile
-
-### Meetings
-- `GET    /api/meetings` — List user's meetings (supports `search` & `type` query params)
-- `POST   /api/meetings` — Create new meeting (supports text body or `.txt` multipart file upload)
-- `GET    /api/meetings/:id` — Get meeting details with parsed AI fields & action items
-- `PUT    /api/meetings/:id` — Update meeting details
-- `DELETE /api/meetings/:id` — Delete meeting and associated action items
-- `POST   /api/meetings/:id/process` — Process meeting transcript through AI engine
-
-### Action Items
-- `GET    /api/action-items` — List action items across meetings with filters (`search`, `status`, `priority`, `owner`, `overdue`)
-- `POST   /api/action-items` — Create action item manually
-- `PUT    /api/action-items/:id` — Update action item details or status
-- `DELETE /api/action-items/:id` — Delete action item
-
-### Dashboard
-- `GET /api/dashboard` — Retrieve aggregate metrics, KPI stats, and recent activity
+### `action_items` Table
+- `id` (UUID, Primary Key)
+- `meetingId` (String, FK -> `meetings.id`)
+- `userId` (String, FK -> `users.id`)
+- `task` (Text)
+- `owner` (String, Default: "Unassigned")
+- `dueDate` (DateTime, optional)
+- `priority` (Enum: "Low", "Medium", "High")
+- `status` (Enum: "Open", "In Progress", "Blocked", "Completed")
+- `evidence` (Text, supporting transcript quote)
+- `createdAt` / `updatedAt` (DateTime)
 
 ---
 
-## Quick Start & Installation
+## 🛡 AI Validation & Grounding Strategy
+
+Raw AI output is **never** saved directly to the database. It passes through a multi-stage validation pipeline:
+
+1. **System Prompt Rules**: Strict instruction to analyze *only* the provided transcript, return verbatim `evidence` quotes, and format output as clean JSON without markdown code fences.
+2. **JSON Parsing & Cleaning**: Strips markdown wrappers (` ```json `) and parses JSON defensively.
+3. **Schema Sanitization (`validateAndSanitizeAIOutput`)**:
+   - Validates required fields (`summary`, `discussionPoints`, `decisions`, `actionItems`, `risks`, `unansweredQuestions`).
+   - Normalizes decision objects into `{ text, evidence }` pairs.
+   - Enforces enum bounds for Priority (`Low` | `Medium` | `High`) and Status (`Open` | `In Progress` | `Blocked` | `Completed`).
+   - Standardizes due dates to `YYYY-MM-DD` or `null`.
+   - Defaults missing owners to `"Unassigned"`.
+4. **Fallback Handling**: If live AI processing encounters an error or network timeout, the system seamlessly transitions to the `mockAiService` heuristic parser without crashing.
+
+---
+
+## 🔒 Security Strategy
+
+- **API Keys**: `AI_API_KEY` and `JWT_SECRET` reside strictly on the Node.js server. They are never exposed to client-side bundles.
+- **Data Isolation**: All database queries (`findMany`, `update`, `delete`) enforce `where: { userId: req.user.id }` to prevent cross-tenant data leaks.
+- **Password Protection**: Passwords are hashed using `bcryptjs` prior to storage. Plaintext passwords are never logged or stored.
+
+---
+
+## 🖥 Local Setup Instructions
 
 ### Prerequisites
-- Node.js (v18+)
-- npm (v9+)
+- Node.js (v18+ recommended)
+- MySQL 8.0 running locally on port `3306`
 
-### 1. Backend Setup
+### 1. Backend Configuration (`/server`)
+
 ```bash
 cd server
 npm install
-npx prisma db push
-npm run db:seed
-npm run dev
 ```
-The backend server starts on `http://localhost:5001`.
 
-### 2. Frontend Setup
+Create `.env` inside `/server`:
+```env
+PORT=5001
+JWT_SECRET=super_secret_ai_meeting_notes_tracker_jwt_key_2026
+DATABASE_URL="mysql://root@localhost:3306/ai_meeting_db"
+AI_PROVIDER=gemini
+AI_MODEL=gemini-1.5-flash
+AI_API_KEY=your_gemini_api_key_here
+```
+
+Push database schema and generate Prisma client:
 ```bash
-cd client
-npm install
+npx prisma db push
+npx prisma generate
+```
+
+Start backend server:
+```bash
 npm run dev
 ```
-The frontend application starts on `http://localhost:3000`.
+
+### 2. Frontend Configuration (`/client`)
+
+```bash
+cd ../client
+npm install
+```
+
+Start Vite dev server:
+```bash
+npm run dev
+```
+
+The application will be accessible at `http://localhost:3000`.
 
 ---
 
-## Demo Credentials
+## 🎬 5-Minute Product Demonstration Flow
 
-For instant testing, a pre-seeded demo user is available:
-- **Email**: `demo@example.com`
-- **Password**: `password123`
-
----
-
-## Assumptions & Exclusions
-
-### Completed Features
-- Full authentication & protected routing.
-- Meeting management CRUD.
-- Direct transcript pasting and `.txt` file uploads.
-- AI analysis engine with Google Gemini & intelligent fallback mock parser.
-- Action Tracker with multi-criteria filtering and overdue highlight.
-- Executive Dashboard with metrics.
-- Dark & Light mode toggle with CSS tokens.
-- Responsive mobile drawer and cards layout.
-
-### Intentionally Excluded Scope
-- Audio/Video calling,WebRTC, live streaming transcription (Out of scope for post-meeting productivity).
-- PDF / DOCX file parsing (Excluded to protect timeline; focused on reliable `.txt` handling).
-- Multi-party live calendar integrations.
+1. **Login**: Access `http://localhost:3000/login` and log in with your credentials.
+2. **Executive Dashboard**: View total metrics, active action items, and the **Action Health Breakdown** card (`% On Track`).
+3. **Meetings List**: Navigate to **Meetings** to inspect recorded sessions or search for existing transcripts.
+4. **Create Meeting**: Create a new meeting record by pasting a transcript or uploading a `.txt` file.
+5. **AI Analysis**: Click **"Analyze with AI"** on the Meeting Details page. Watch the live progress overlay extract structured insights.
+6. **Grounding & Evidence Traceability**:
+   - Inspect decisions and action items featuring **✓ Source-backed** badges.
+   - Click **"View in transcript"** on any decision or action item to automatically expand the transcript, scroll into view, and highlight the source sentence.
+7. **Action Tracker**: Open **Action Tracker** to filter tasks by status (e.g. `Overdue Only`), change task statuses, or update assignees.
+8. **Theme Toggle**: Switch between **Dark Mode** and **Light Mode** using the sun/moon icon in the Navbar.
+9. **Mobile Inspection**: Resize screen width to `375px` to verify mobile drawer navigation, card conversions, and touch-friendly controls.
 
 ---
 
-## License
+## 📋 Assumptions & Known Limitations
 
-MIT License. Developed for Technical Hiring Assessment.
+- **File Support**: Current file upload parser supports plain text (`.txt`) and PDF (`.pdf`) files up to 5MB.
+- **AI Token Limits**: Extremely long transcripts (>25,000 words) may require transcript truncation or chunking depending on model context limits.
+- **Single Tenant Database**: Designed for single-organization multi-user deployment where users isolate their own meetings.
+
+---
+
+## 🔮 Future Improvements
+
+1. **Background Job Queueing**: Integrate BullMQ/Redis for asynchronous AI processing of large transcripts.
+2. **Audio/Video Transcription**: Integrate Whisper API for direct `.mp3`/`.mp4` audio transcription.
+3. **Calendar Integration**: Export action item due dates to Google Calendar or Outlook.

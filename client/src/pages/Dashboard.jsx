@@ -64,7 +64,7 @@ const Dashboard = () => {
       </div>
 
       {/* KPI Stat Cards Grid */}
-      <div className="grid-cols-5" style={{ marginBottom: '2.5rem' }}>
+      <div className="grid-cols-5" style={{ marginBottom: '1.5rem' }}>
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
@@ -88,6 +88,75 @@ const Dashboard = () => {
             </Link>
           );
         })}
+      </div>
+
+      {/* Action Health Banner Card */}
+      <div className="card" style={{ marginBottom: '2.5rem', padding: '1.5rem 1.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>
+              Accountability & Health
+            </div>
+            <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Action Health Breakdown</h3>
+          </div>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.4rem 0.85rem',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: metrics.healthPercentage >= 75 ? 'var(--success-bg)' : metrics.healthPercentage >= 50 ? 'var(--warning-bg)' : 'var(--danger-bg)',
+            color: metrics.healthPercentage >= 75 ? 'var(--success)' : metrics.healthPercentage >= 50 ? 'var(--warning)' : 'var(--danger)',
+            fontWeight: '700',
+            fontSize: '0.9rem',
+            border: `1px solid ${metrics.healthPercentage >= 75 ? 'var(--success)' : metrics.healthPercentage >= 50 ? 'var(--warning)' : 'var(--danger)'}`
+          }}>
+            <CheckCircle size={16} />
+            <span>{metrics.healthPercentage}% On Track</span>
+          </div>
+        </div>
+
+        {/* Multi-segment Health Bar */}
+        <div style={{
+          height: '10px',
+          width: '100%',
+          backgroundColor: 'var(--bg-tertiary)',
+          borderRadius: 'var(--radius-full)',
+          overflow: 'hidden',
+          display: 'flex',
+          marginBottom: '1.25rem'
+        }}>
+          {metrics.totalActionItems > 0 ? (
+            <>
+              <div style={{ width: `${(metrics.completedActionItems / metrics.totalActionItems) * 100}%`, backgroundColor: 'var(--success)', transition: 'width 0.5s ease' }} title="Completed" />
+              <div style={{ width: `${((metrics.onTrackCount || 0) / metrics.totalActionItems) * 100}%`, backgroundColor: 'var(--info)', transition: 'width 0.5s ease' }} title="On Track" />
+              <div style={{ width: `${((metrics.dueSoonActionItems || 0) / metrics.totalActionItems) * 100}%`, backgroundColor: 'var(--warning)', transition: 'width 0.5s ease' }} title="Due Soon" />
+              <div style={{ width: `${((metrics.overdueActionItems || 0) / metrics.totalActionItems) * 100}%`, backgroundColor: 'var(--danger)', transition: 'width 0.5s ease' }} title="Overdue" />
+            </>
+          ) : (
+            <div style={{ width: '100%', backgroundColor: 'var(--success)', opacity: 0.5 }} />
+          )}
+        </div>
+
+        {/* Health Stat Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--info)' }} />
+            <strong>{metrics.openActionItems || 0}</strong> Open
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+            <strong>{metrics.onTrackCount || 0}</strong> On Track
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--warning)' }} />
+            <strong>{metrics.dueSoonActionItems || 0}</strong> Due Soon
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--danger)' }} />
+            <strong style={{ color: metrics.overdueActionItems > 0 ? 'var(--danger)' : 'inherit' }}>{metrics.overdueActionItems || 0}</strong> Overdue
+          </span>
+        </div>
       </div>
 
       {/* Main Content Grid: Recent Meetings + Recent Action Items */}

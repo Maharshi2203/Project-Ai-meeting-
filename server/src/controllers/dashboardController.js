@@ -4,6 +4,8 @@ const getDashboardStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const today = new Date();
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(today.getDate() + 3);
 
     const [
       totalMeetings,
@@ -13,6 +15,7 @@ const getDashboardStats = async (req, res, next) => {
       blockedActionItems,
       completedActionItems,
       overdueActionItems,
+      dueSoonActionItems,
       recentMeetings,
       recentActions
     ] = await Promise.all([
@@ -26,6 +29,13 @@ const getDashboardStats = async (req, res, next) => {
         where: {
           userId,
           dueDate: { lt: today },
+          status: { not: 'Completed' }
+        }
+      }),
+      prisma.actionItem.count({
+        where: {
+          userId,
+          dueDate: { gte: today, lte: threeDaysFromNow },
           status: { not: 'Completed' }
         }
       }),
@@ -51,6 +61,12 @@ const getDashboardStats = async (req, res, next) => {
       })
     ]);
 
+    const activePending = totalActionItems - completedActionItems;
+    const onTrackCount = Math.max(0, activePending - overdueActionItems);
+    const healthPercentage = totalActionItems > 0
+      ? Math.round(((completedActionItems + onTrackCount) / totalActionItems) * 100)
+      : 100;
+
     return res.status(200).json({
       success: true,
       data: {
@@ -61,7 +77,10 @@ const getDashboardStats = async (req, res, next) => {
           inProgressActionItems,
           blockedActionItems,
           completedActionItems,
-          overdueActionItems
+          overdueActionItems,
+          dueSoonActionItems,
+          onTrackCount,
+          healthPercentage
         },
         recentMeetings,
         recentActions

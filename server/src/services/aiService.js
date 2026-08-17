@@ -1,21 +1,38 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { analyzeTranscriptMock } = require('./mockAiService');
+const { enforceBusinessRulesOnAIOutput } = require('../utils/aiSafetyValidator');
 
 /**
- * Validate and clean the AI output structure to ensure app stability.
+ * Validate and clean the AI output structure to ensure app stability and schema compliance.
  */
-function validateAndSanitizeAIOutput(parsed) {
+function validateAndSanitizeAIOutput(parsed, transcriptText = '') {
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('AI output must be a JSON object.');
+    throw new Error('AI output must be a valid JSON object.');
   }
 
   const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : 'No summary generated.';
   const discussionPoints = Array.isArray(parsed.discussionPoints)
     ? parsed.discussionPoints.map(item => String(item).trim()).filter(Boolean)
     : [];
+
+  // Standardize decisions into { text, evidence } objects
   const decisions = Array.isArray(parsed.decisions)
-    ? parsed.decisions.map(item => String(item).trim()).filter(Boolean)
+    ? parsed.decisions
+        .filter(Boolean)
+        .map(item => {
+          if (typeof item === 'string') {
+            return { text: item.trim(), evidence: '' };
+          } else if (typeof item === 'object' && item.text) {
+            return {
+              text: String(item.text).trim(),
+              evidence: item.evidence ? String(item.evidence).trim() : ''
+            };
+          }
+          return null;
+        })
+        .filter(Boolean)
     : [];
+
   const risks = Array.isArray(parsed.risks)
     ? parsed.risks.map(item => String(item).trim()).filter(Boolean)
     : [];
@@ -26,7 +43,8 @@ function validateAndSanitizeAIOutput(parsed) {
   const validPriorities = ['Low', 'Medium', 'High'];
   const validStatuses = ['Open', 'In Progress', 'Blocked', 'Completed'];
 
-  const actionItems = Array.isArray(parsed.actionItems)
+  // Standardize action items with evidence grounding
+  const rawActionItems = Array.isArray(parsed.actionItems)
     ? parsed.actionItems
         .filter(item => item && typeof item === 'object' && item.task)
         .map(item => ({
@@ -34,32 +52,38 @@ function validateAndSanitizeAIOutput(parsed) {
           owner: item.owner && String(item.owner).trim() !== '' ? String(item.owner).trim() : 'Unassigned',
           dueDate: item.dueDate ? String(item.dueDate).trim() : null,
           priority: validPriorities.includes(item.priority) ? item.priority : 'Medium',
-          status: validStatuses.includes(item.status) ? item.status : 'Open'
+          status: validStatuses.includes(item.status) ? item.status : 'Open',
+          evidence: item.evidence ? String(item.evidence).trim() : (typeof item.task === 'string' ? item.task.trim() : '')
         }))
     : [];
 
-  return {
+  const initialCleanOutput = {
     summary,
     discussionPoints,
     decisions,
     risks,
     unansweredQuestions,
-    actionItems
+    actionItems: rawActionItems
   };
+
+  // Run business-rule safety check (strips question words as owners, reclassifies questions to unansweredQuestions)
+  return enforceBusinessRulesOnAIOutput(initialCleanOutput);
 }
 
 /**
  * Main AI processing service.
- * Tries Google Gemini API if key is present; otherwise falls back to Mock AI Provider.
+ * Supports configured AI Provider (Gemini API) and Mock Mode (AI_PROVIDER=mock or fallback).
  */
 async function processTranscriptWithAI(transcript) {
+  const provider = (process.env.AI_PROVIDER || '').toLowerCase();
   const apiKey = process.env.AI_API_KEY;
   const modelName = process.env.AI_MODEL || 'gemini-1.5-flash';
 
-  if (!apiKey || apiKey.trim() === '') {
-    console.log('[AI SERVICE]: No AI_API_KEY found. Utilizing Mock AI Provider.');
+  // Explicit Mock Mode or missing API Key fallback
+  if (provider === 'mock' || !apiKey || apiKey.trim() === '') {
+    console.log('[AI SERVICE]: Executing in Mock Provider mode.');
     const mockOutput = analyzeTranscriptMock(transcript);
-    return validateAndSanitizeAIOutput(mockOutput);
+    return validateAndSanitizeAIOutput(mockOutput, transcript);
   }
 
   try {
@@ -67,37 +91,41 @@ async function processTranscriptWithAI(transcript) {
     const model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = `
-You are an expert AI meeting notes assistant.
-Analyze the following meeting transcript and extract structured meeting intelligence.
+You are an expert AI meeting intelligence and action tracking assistant.
+Analyze the supplied meeting transcript and extract structured meeting intelligence.
 
-CRITICAL INSTRUCTIONS:
-- Use ONLY facts directly supported by the transcript.
-- Do NOT invent people, deadlines, decisions, or responsibilities.
+CRITICAL GROUNDING & VERACITY RULES:
+- Analyze ONLY the supplied transcript. Do NOT invent or infer facts, people, decisions, or deadlines not present in text.
+- QUESTIONS ARE NOT ACTION ITEMS. Sentences ending with '?' or starting with question words (Who, What, When, Where, Why, How, Can, Could, Would, Should) MUST be placed in "unansweredQuestions" or "discussionPoints", NOT "actionItems".
+- NEVER extract a question word ("Who", "What", "How", "Why", "When") as an owner. Question words are NOT people.
+- An action item requires reasonable evidence of a committed task by a person or team.
 - If an owner is unknown or unassigned in the transcript, set "owner": "Unassigned".
-- If no due date is stated, set "dueDate": null. Format due dates as YYYY-MM-DD if recognizable, else as text.
-- If no decisions exist, return an empty array for "decisions".
-- If no action items exist, return an empty array for "actionItems".
-- Keep summary concise, accurate, and professional.
-- Priority must strictly be one of: "Low", "Medium", "High".
-- Status must strictly be: "Open".
-- Return ONLY valid JSON without markdown code fences or extra text.
+- If no due date is explicitly stated, set "dueDate": null.
+- Extract verbatim transcript sentences into "evidence" fields to support decisions and action items for source traceability.
+- Return valid, raw JSON with NO markdown formatting, NO code blocks, NO HTML tags.
 
-JSON Schema format:
+JSON Output Schema:
 {
-  "summary": "String",
-  "discussionPoints": ["String"],
-  "decisions": ["String"],
-  "actionItems": [
+  "summary": "Concise 2-3 sentence executive summary of the meeting",
+  "discussionPoints": ["Key point 1", "Key point 2"],
+  "decisions": [
     {
-      "task": "String",
-      "owner": "String",
-      "dueDate": "String or null",
-      "priority": "Low | Medium | High",
-      "status": "Open"
+      "text": "Selected React for frontend framework",
+      "evidence": "The client approved React for the MVP."
     }
   ],
-  "risks": ["String"],
-  "unansweredQuestions": ["String"]
+  "actionItems": [
+    {
+      "task": "Prepare authentication module",
+      "owner": "Rahul",
+      "dueDate": "2026-09-05",
+      "priority": "High",
+      "status": "Open",
+      "evidence": "Rahul will prepare the authentication module by September 5."
+    }
+  ],
+  "risks": ["Risk or concern identified"],
+  "unansweredQuestions": ["Unresolved question asked"]
 }
 
 TRANSCRIPT:
@@ -114,11 +142,11 @@ ${transcript}
       .trim();
 
     const parsed = JSON.parse(cleanedText);
-    return validateAndSanitizeAIOutput(parsed);
+    return validateAndSanitizeAIOutput(parsed, transcript);
   } catch (error) {
-    console.error('[AI SERVICE ERROR]: Live AI processing failed. Falling back to Mock AI Provider. Error:', error.message);
+    console.error('[AI SERVICE ERROR]: Live AI processing failed. Utilizing safe Mock Provider fallback. Error:', error.message);
     const mockFallback = analyzeTranscriptMock(transcript);
-    return validateAndSanitizeAIOutput(mockFallback);
+    return validateAndSanitizeAIOutput(mockFallback, transcript);
   }
 }
 

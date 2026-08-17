@@ -8,7 +8,8 @@ const {
   getMeetingById,
   updateMeeting,
   deleteMeeting,
-  processMeetingAI
+  processMeetingAI,
+  debugPdfExtraction
 } = require('../controllers/meetingController');
 
 // Multer memory storage configuration with 5MB limit
@@ -21,6 +22,7 @@ router.use(authMiddleware);
 
 router.get('/', getMeetings);
 router.post('/', upload.single('file'), createMeeting);
+router.post('/debug-pdf', upload.single('file'), debugPdfExtraction);
 router.get('/:id', getMeetingById);
 router.put('/:id', updateMeeting);
 router.delete('/:id', deleteMeeting);

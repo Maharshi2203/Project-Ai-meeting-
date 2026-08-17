@@ -1,22 +1,7 @@
 const prisma = require('../config/database');
 const { validateMeeting } = require('../validators/meetingValidator');
 const { processTranscriptWithAI } = require('../services/aiService');
-const pdfModule = require('pdf-parse');
-
-const extractPdfText = async (buffer) => {
-  if (pdfModule.PDFParse) {
-    const parser = new pdfModule.PDFParse({ data: buffer });
-    const pdfData = await parser.getText();
-    return pdfData.text || '';
-  } else if (typeof pdfModule === 'function') {
-    const pdfData = await pdfModule(buffer);
-    return pdfData.text || '';
-  } else if (pdfModule.default && typeof pdfModule.default === 'function') {
-    const pdfData = await pdfModule.default(buffer);
-    return pdfData.text || '';
-  }
-  throw new Error('Unsupported pdf-parse module structure.');
-};
+const { extractPdfTextWithReadingOrder } = require('../utils/pdfExtractor');
 
 const createMeeting = async (req, res, next) => {
   try {
@@ -29,18 +14,20 @@ const createMeeting = async (req, res, next) => {
         transcriptText = req.file.buffer.toString('utf8');
       } else if (fileName.endsWith('.pdf')) {
         try {
-          transcriptText = await extractPdfText(req.file.buffer);
+          console.log(`[PDF EXTRACTION]: Processing uploaded PDF document "${req.file.originalname}" (${req.file.size} bytes)...`);
+          transcriptText = await extractPdfTextWithReadingOrder(req.file.buffer);
+          console.log(`[PDF EXTRACTION SUCCESS]: Extracted ${transcriptText.length} characters with reading-order preservation.`);
           if (!transcriptText || !transcriptText.trim()) {
             return res.status(400).json({
               success: false,
-              message: 'No readable text could be extracted from this PDF document. If it is a scanned image, please paste text manually.'
+              message: 'Unable to extract text from this PDF. Please verify that the file contains readable text or try pasting manually.'
             });
           }
         } catch (pdfErr) {
-          console.error('PDF Parsing Error:', pdfErr);
+          console.error('PDF Reading-Order Parsing Error:', pdfErr);
           return res.status(400).json({
             success: false,
-            message: 'Failed to extract text from uploaded PDF file. Please ensure it is a valid PDF document.'
+            message: pdfErr.message || 'Failed to extract text from uploaded PDF file. Please ensure it is a valid text-based PDF document.'
           });
         }
       } else {
@@ -300,7 +287,8 @@ const processMeetingAI = async (req, res, next) => {
           owner: item.owner || 'Unassigned',
           dueDate: parsedDate,
           priority: item.priority || 'Medium',
-          status: item.status || 'Open'
+          status: item.status || 'Open',
+          evidence: item.evidence || item.task
         };
       });
 
@@ -331,6 +319,31 @@ const processMeetingAI = async (req, res, next) => {
         }
       }
     });
+const debugPdfExtraction = async (req, res, next) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ success: false, message: 'PDF Debugger is disabled in production environments.' });
+    }
+
+    if (!req.file || !req.file.originalname.toLowerCase().endsWith('.pdf')) {
+      return res.status(400).json({ success: false, message: 'Please upload a valid PDF file under the "file" field.' });
+    }
+
+    const transcriptText = await extractPdfTextWithReadingOrder(req.file.buffer);
+    const lines = transcriptText.split('\n').filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      message: 'PDF reading-order extraction inspect completed.',
+      data: {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        characterCount: transcriptText.length,
+        lineCount: lines.length,
+        linesPreview: lines.slice(0, 30),
+        fullTranscript: transcriptText
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -342,5 +355,6 @@ module.exports = {
   getMeetingById,
   updateMeeting,
   deleteMeeting,
-  processMeetingAI
+  processMeetingAI,
+  debugPdfExtraction
 };

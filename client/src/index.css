@@ -175,6 +175,13 @@ input:focus, textarea:focus, select:focus {
   top: 0;
   z-index: 150;
   flex-shrink: 0;
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+}
+
+.sidebar.closed {
+  margin-left: calc(-1 * var(--sidebar-width));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-logo {
@@ -736,13 +743,30 @@ input:focus, textarea:focus, select:focus {
   .sidebar {
     position: fixed;
     left: 0; top: 0; bottom: 0;
+    margin-left: 0 !important;
     transform: translateX(-100%);
-    transition: transform 0.28s ease;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
     z-index: 200;
   }
 
   .sidebar.open {
     transform: translateX(0);
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .sidebar.closed {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .sidebar-toggle-btn {
+    display: flex !important;
+  }
+
+  .sidebar-close-btn {
+    display: flex !important;
   }
 
   .navbar-search {

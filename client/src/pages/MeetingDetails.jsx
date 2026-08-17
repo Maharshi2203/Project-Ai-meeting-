@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { meetingService } from '../services/meetingService';
 import { actionService } from '../services/actionService';
@@ -19,7 +19,10 @@ import {
   ArrowLeft,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 
 const MeetingDetails = () => {
@@ -34,13 +37,23 @@ const MeetingDetails = () => {
   const [deleting, setDeleting] = useState(false);
   const [aiError, setAiError] = useState('');
 
+  // Source text grounding & highlighting
+  const [highlightedQuote, setHighlightedQuote] = useState('');
+  const transcriptRef = useRef(null);
+
   // Add Action Item Inline Modal state
   const [newActionModal, setNewActionModal] = useState(false);
   const [newActionTask, setNewActionTask] = useState('');
   const [newActionOwner, setNewActionOwner] = useState('Unassigned');
   const [newActionDueDate, setNewActionDueDate] = useState('');
   const [newActionPriority, setNewActionPriority] = useState('Medium');
+  const [newActionEvidence, setNewActionEvidence] = useState('');
   const [actionSaving, setActionSaving] = useState(false);
+
+  // Delete action item confirmation
+  const [deleteActionId, setDeleteActionId] = useState(null);
+  const [deletingAction, setDeletingAction] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     fetchMeetingDetails();
@@ -52,7 +65,7 @@ const MeetingDetails = () => {
       const res = await meetingService.getMeetingById(id);
       setMeeting(res.data.meeting);
     } catch (err) {
-      console.error('Failed to fetch meeting details:', err);
+      console.error('Failed to load meeting:', err);
     } finally {
       setLoading(false);
     }
@@ -60,17 +73,15 @@ const MeetingDetails = () => {
 
   const handleProcessAI = async () => {
     try {
-      setAiError('');
       setProcessingAI(true);
+      setAiError('');
+      const res = await meetingService.processMeetingAI(id);
 
-      // Run the API call and a minimum 5-second timer in parallel
-      const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
-      const apiCall = meetingService.processAI(id);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const [, res] = await Promise.all([minDelay, apiCall]);
       setMeeting(res.data.meeting);
     } catch (err) {
-      setAiError(err.response?.data?.message || 'AI transcript processing failed. Please try again.');
+      setAiError(err.response?.data?.message || 'Failed to analyze transcript with AI.');
     } finally {
       setProcessingAI(false);
     }
@@ -82,9 +93,41 @@ const MeetingDetails = () => {
       await meetingService.deleteMeeting(id);
       navigate('/meetings');
     } catch (err) {
-      console.error('Failed to delete meeting:', err);
+      setDeleteError(err.response?.data?.message || 'Failed to delete meeting.');
     } finally {
       setDeleting(false);
+      setDeleteModalOpen(false);
+    }
+  };
+
+  const handleUpdateActionStatus = async (actionId, newStatus) => {
+    try {
+      await actionService.updateActionItem(actionId, { status: newStatus });
+      setMeeting((prev) => ({
+        ...prev,
+        actionItems: prev.actionItems.map((item) =>
+          item.id === actionId ? { ...item, status: newStatus } : item
+        )
+      }));
+    } catch (err) {
+      console.error('Failed to update action status:', err);
+    }
+  };
+
+  const handleDeleteActionItem = async () => {
+    if (!deleteActionId) return;
+    try {
+      setDeletingAction(true);
+      await actionService.deleteActionItem(deleteActionId);
+      setMeeting((prev) => ({
+        ...prev,
+        actionItems: prev.actionItems.filter((item) => item.id !== deleteActionId)
+      }));
+      setDeleteActionId(null);
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || 'Failed to delete action item.');
+    } finally {
+      setDeletingAction(false);
     }
   };
 
@@ -94,19 +137,26 @@ const MeetingDetails = () => {
 
     try {
       setActionSaving(true);
-      await actionService.createActionItem({
+      const res = await actionService.createActionItem({
         meetingId: id,
-        task: newActionTask.trim(),
-        owner: newActionOwner.trim() || 'Unassigned',
-        dueDate: newActionDueDate || undefined,
+        task: newActionTask,
+        owner: newActionOwner || 'Unassigned',
+        dueDate: newActionDueDate || null,
         priority: newActionPriority,
-        status: 'Open'
+        evidence: newActionEvidence || newActionTask
       });
+
+      setMeeting((prev) => ({
+        ...prev,
+        actionItems: [res.data.actionItem, ...prev.actionItems]
+      }));
+
+      setNewActionModal(false);
       setNewActionTask('');
       setNewActionOwner('Unassigned');
       setNewActionDueDate('');
-      setNewActionModal(false);
-      fetchMeetingDetails();
+      setNewActionPriority('Medium');
+      setNewActionEvidence('');
     } catch (err) {
       console.error('Failed to create action item:', err);
     } finally {
@@ -114,28 +164,54 @@ const MeetingDetails = () => {
     }
   };
 
-  const handleUpdateActionStatus = async (actionId, newStatus) => {
-    try {
-      await actionService.updateActionItem(actionId, { status: newStatus });
-      fetchMeetingDetails();
-    } catch (err) {
-      console.error('Failed to update action status:', err);
-    }
+  const handleViewInTranscript = (quote) => {
+    if (!quote) return;
+    const cleaned = quote.replace(/^["']|["']$/g, '').trim();
+    setHighlightedQuote(cleaned);
+    setShowTranscript(true);
+    setTimeout(() => {
+      if (transcriptRef.current) {
+        transcriptRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
-  const handleDeleteActionItem = async (actionId) => {
-    try {
-      await actionService.deleteActionItem(actionId);
-      fetchMeetingDetails();
-    } catch (err) {
-      console.error('Failed to delete action item:', err);
-    }
+  const renderTranscriptWithHighlights = (transcriptText) => {
+    if (!highlightedQuote || !transcriptText) return transcriptText;
+
+    const lowerTranscript = transcriptText.toLowerCase();
+    const lowerQuote = highlightedQuote.toLowerCase();
+    const matchIndex = lowerTranscript.indexOf(lowerQuote);
+
+    if (matchIndex === -1) return transcriptText;
+
+    const before = transcriptText.slice(0, matchIndex);
+    const match = transcriptText.slice(matchIndex, matchIndex + highlightedQuote.length);
+    const after = transcriptText.slice(matchIndex + highlightedQuote.length);
+
+    return (
+      <>
+        {before}
+        <mark style={{
+          backgroundColor: '#fef08a',
+          color: '#1e293b',
+          fontWeight: '700',
+          padding: '0.15rem 0.35rem',
+          borderRadius: '4px',
+          boxShadow: '0 0 0 2px #eab308'
+        }}>
+          {match}
+        </mark>
+        {after}
+      </>
+    );
   };
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 className="animate-spin" size={36} style={{ color: 'var(--accent-primary)' }} />
+      <div style={{ padding: '4rem', textAlign: 'center' }}>
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
+        <p style={{ color: 'var(--text-secondary)' }}>Loading meeting details...</p>
       </div>
     );
   }
@@ -143,78 +219,93 @@ const MeetingDetails = () => {
   if (!meeting) {
     return (
       <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-        <FileText size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+        <AlertTriangle size={48} style={{ color: 'var(--danger)', marginBottom: '1rem' }} />
         <h2>Meeting Not Found</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>This meeting may have been deleted or you do not have permission to view it.</p>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>The requested meeting does not exist or you do not have permission to view it.</p>
         <Link to="/meetings" className="btn btn-primary">Back to Meetings</Link>
       </div>
     );
   }
 
-  const hasAIAnalysis = meeting.summary || (meeting.decisions && meeting.decisions.length > 0);
+  const hasAIAnalysis = Boolean(meeting.summary || (meeting.decisions && meeting.decisions.length > 0));
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <AIProgressOverlay isOpen={processingAI} />
 
-      {/* Back button */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      {/* Delete Confirmation Modal for Meeting */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDeleteMeeting}
+        title="Delete Meeting Record"
+        message="Are you sure you want to delete this meeting? All transcript data and associated action items will be permanently removed."
+        confirmText="Delete Meeting"
+        loading={deleting}
+      />
+
+      {/* Delete Action Item Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deleteActionId)}
+        onClose={() => setDeleteActionId(null)}
+        onConfirm={handleDeleteActionItem}
+        title="Delete Action Item"
+        message="Are you sure you want to delete this action item from the tracker?"
+        confirmText="Delete Item"
+        loading={deletingAction}
+      />
+
+      {/* Top Header & Breadcrumb */}
+      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <Link to="/meetings" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
           <ArrowLeft size={16} />
           <span>Back to Meetings</span>
         </Link>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button className="btn btn-primary" onClick={handleProcessAI} disabled={processingAI} style={{ gap: '0.5rem' }}>
+            <Sparkles size={16} />
+            <span>{processingAI ? 'Analyzing...' : hasAIAnalysis ? 'Re-Analyze AI' : 'Analyze with AI'}</span>
+          </button>
+
+          <Link to={`/meetings/${id}/edit`} className="btn btn-secondary" style={{ gap: '0.4rem' }}>
+            <Edit3 size={15} />
+            <span>Edit</span>
+          </Link>
+
+          <button className="btn btn-danger" onClick={() => setDeleteModalOpen(true)} title="Delete Meeting">
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Top Header Card */}
-      <div className="card" style={{ marginBottom: '2rem', padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-          <div>
-            <span style={{
-              padding: '0.25rem 0.75rem',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '0.8rem',
-              fontWeight: '600',
-              backgroundColor: 'var(--accent-light)',
-              color: 'var(--accent-primary)',
-              border: '1px solid var(--accent-glow)',
-              marginBottom: '0.75rem',
-              display: 'inline-block'
-            }}>
-              {meeting.meetingType}
-            </span>
-            <h1 style={{ fontSize: '1.85rem', marginBottom: '0.5rem', lineHeight: '1.2' }}>{meeting.title}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Calendar size={16} style={{ color: 'var(--accent-primary)' }} />
-                <span>{new Date(meeting.meetingDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
-              {meeting.participants && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Users size={16} style={{ color: 'var(--accent-primary)' }} />
-                  <span>{meeting.participants}</span>
-                </div>
-              )}
-            </div>
-          </div>
+      {deleteError && (
+        <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertTriangle size={18} />
+          <span>{deleteError}</span>
+        </div>
+      )}
 
-          {/* Header Actions */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              onClick={handleProcessAI}
-              disabled={processingAI}
-              style={{ gap: '0.5rem', boxShadow: '0 4px 12px var(--accent-glow)' }}
-            >
-              <Sparkles size={18} />
-              <span>{hasAIAnalysis ? 'Reprocess with AI' : 'Analyze with AI'}</span>
-            </button>
-            <Link to={`/meetings/${id}/edit`} className="btn btn-secondary" title="Edit Meeting Details">
-              <Edit3 size={18} />
-            </Link>
-            <button className="btn btn-secondary" onClick={() => setDeleteModalOpen(true)} title="Delete Meeting" style={{ color: 'var(--danger)' }}>
-              <Trash2 size={18} />
-            </button>
+      {/* Meeting Title & Meta Banner */}
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <span className="meeting-type-chip">{meeting.meetingType}</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Created {new Date(meeting.createdAt).toLocaleDateString()}</span>
+        </div>
+
+        <h1 style={{ fontSize: '1.75rem', marginBottom: '1rem', lineHeight: '1.3' }}>{meeting.title}</h1>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Calendar size={16} style={{ color: 'var(--accent-primary)' }} />
+            <span>Date: <strong>{new Date(meeting.meetingDate).toLocaleDateString()}</strong></span>
           </div>
+          {meeting.participants && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Users size={16} style={{ color: 'var(--info)' }} />
+              <span>Participants: <strong>{meeting.participants}</strong></span>
+            </div>
+          )}
         </div>
 
         {aiError && (
@@ -252,9 +343,15 @@ const MeetingDetails = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', marginBottom: '2rem' }}>
           {/* Executive Summary */}
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--accent-primary)' }}>
-              <Sparkles size={20} />
-              <h3 style={{ fontSize: '1.15rem' }}>Executive Summary</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-primary)' }}>
+                <Sparkles size={20} />
+                <h3 style={{ fontSize: '1.15rem' }}>Executive Summary</h3>
+              </div>
+              <span className="badge badge-completed" style={{ gap: '0.25rem' }}>
+                <ShieldCheck size={13} />
+                <span>Source-backed</span>
+              </span>
             </div>
             <p style={{ fontSize: '0.975rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
               {meeting.summary}
@@ -270,7 +367,7 @@ const MeetingDetails = () => {
                 <h3 style={{ fontSize: '1.15rem' }}>Discussion Points</h3>
               </div>
               {meeting.discussionPoints && meeting.discussionPoints.length > 0 ? (
-                <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.925rem' }}>
+                <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.925rem' }}>
                   {meeting.discussionPoints.map((point, idx) => (
                     <li key={idx} style={{ color: 'var(--text-primary)', lineHeight: '1.5' }}>{point}</li>
                   ))}
@@ -287,11 +384,44 @@ const MeetingDetails = () => {
                 <h3 style={{ fontSize: '1.15rem' }}>Key Decisions</h3>
               </div>
               {meeting.decisions && meeting.decisions.length > 0 ? (
-                <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.925rem' }}>
-                  {meeting.decisions.map((dec, idx) => (
-                    <li key={idx} style={{ color: 'var(--text-primary)', lineHeight: '1.5' }}>{dec}</li>
-                  ))}
-                </ul>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {meeting.decisions.map((dec, idx) => {
+                    const isObj = typeof dec === 'object' && dec !== null;
+                    const text = isObj ? dec.text : dec;
+                    const evidence = isObj ? dec.evidence : text;
+
+                    return (
+                      <div key={idx} style={{
+                        padding: '0.75rem 0.9rem',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-primary)' }}>{text}</span>
+                          <span className="badge badge-completed" style={{ fontSize: '0.7rem', gap: '0.2rem', padding: '0.15rem 0.4rem' }}>
+                            <ShieldCheck size={11} />
+                            <span>Source-backed</span>
+                          </span>
+                        </div>
+                        {evidence && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)', fontSize: '0.775rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              "{evidence.slice(0, 75)}{evidence.length > 75 ? '...' : ''}"
+                            </span>
+                            <button
+                              onClick={() => handleViewInTranscript(evidence)}
+                              style={{ color: 'var(--accent-primary)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}
+                            >
+                              <span>View in transcript</span>
+                              <ExternalLink size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No decisions were formally concluded in this meeting.</p>
               )}
@@ -364,45 +494,70 @@ const MeetingDetails = () => {
                   padding: '1rem',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: isOverdue ? 'var(--danger-bg)' : 'var(--bg-tertiary)',
-                  border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border-color)'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  flexWrap: 'wrap'
+                  border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border-color)'}`
                 }}>
-                  <div style={{ flex: 1, minWidth: '240px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.task}</span>
-                      {isOverdue && <span className="badge badge-overdue">OVERDUE</span>}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '1rem',
+                    flexWrap: 'wrap',
+                    marginBottom: item.evidence ? '0.5rem' : 0
+                  }}>
+                    <div style={{ flex: 1, minWidth: '240px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.task}</span>
+                        {isOverdue && <span className="badge badge-overdue">OVERDUE</span>}
+                        {item.evidence && (
+                          <span className="badge badge-completed" style={{ fontSize: '0.7rem', gap: '0.2rem', padding: '0.15rem 0.4rem' }}>
+                            <ShieldCheck size={11} />
+                            <span>Source-backed</span>
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        <span>Owner: <strong style={{ color: 'var(--text-secondary)' }}>{item.owner}</strong></span>
+                        <span>Due: <strong style={{ color: 'var(--text-secondary)' }}>{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'Not specified'}</strong></span>
+                        <span>Priority: <strong style={{ color: 'var(--text-secondary)' }}>{item.priority}</strong></span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      <span>Owner: <strong style={{ color: 'var(--text-secondary)' }}>{item.owner}</strong></span>
-                      <span>Due: <strong style={{ color: 'var(--text-secondary)' }}>{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'Not specified'}</strong></span>
-                      <span>Priority: <strong style={{ color: 'var(--text-secondary)' }}>{item.priority}</strong></span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <select
+                        value={item.status}
+                        onChange={(e) => handleUpdateActionStatus(item.id, e.target.value)}
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem' }}
+                      >
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Blocked">Blocked</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+
+                      <button
+                        onClick={() => setDeleteActionId(item.id)}
+                        style={{ color: 'var(--danger)', padding: '0.35rem' }}
+                        title="Delete action item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <select
-                      value={item.status}
-                      onChange={(e) => handleUpdateActionStatus(item.id, e.target.value)}
-                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.825rem' }}
-                    >
-                      <option value="Open">Open</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Blocked">Blocked</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-
-                    <button
-                      onClick={() => handleDeleteActionItem(item.id)}
-                      style={{ color: 'var(--danger)', padding: '0.35rem' }}
-                      title="Delete action item"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {item.evidence && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)', fontSize: '0.775rem' }}>
+                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        Source: "{item.evidence}"
+                      </span>
+                      <button
+                        onClick={() => handleViewInTranscript(item.evidence)}
+                        style={{ color: 'var(--accent-primary)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}
+                      >
+                        <span>View in transcript</span>
+                        <ExternalLink size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -411,7 +566,7 @@ const MeetingDetails = () => {
       </div>
 
       {/* Transcript Accordion / Card */}
-      <div className="card">
+      <div className="card" ref={transcriptRef}>
         <div
           onClick={() => setShowTranscript(prev => !prev)}
           style={{
@@ -425,6 +580,11 @@ const MeetingDetails = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FileText size={20} style={{ color: 'var(--accent-primary)' }} />
             <h3 style={{ fontSize: '1.15rem' }}>Full Meeting Transcript</h3>
+            {highlightedQuote && (
+              <span className="badge badge-completed" style={{ fontSize: '0.75rem' }}>
+                Highlight Active
+              </span>
+            )}
           </div>
           <button style={{ color: 'var(--text-secondary)' }}>
             {showTranscript ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -445,7 +605,7 @@ const MeetingDetails = () => {
               maxHeight: '400px',
               overflowY: 'auto'
             }}>
-              {meeting.transcript}
+              {renderTranscriptWithHighlights(meeting.transcript)}
             </pre>
           </div>
         )}
@@ -511,28 +671,28 @@ const MeetingDetails = () => {
                 </select>
               </div>
 
+              <div className="form-group">
+                <label>Supporting Evidence / Transcript Quote</label>
+                <input
+                  type="text"
+                  placeholder="Optional quote from transcript"
+                  value={newActionEvidence}
+                  onChange={(e) => setNewActionEvidence(e.target.value)}
+                />
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setNewActionModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={actionSaving}>
-                  {actionSaving ? 'Saving...' : 'Add Task'}
+                  {actionSaving ? 'Saving...' : 'Create Action Item'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={deleteModalOpen}
-        title="Delete Meeting"
-        message="Are you sure you want to delete this meeting? All associated extracted action items will be permanently removed."
-        onConfirm={handleDeleteMeeting}
-        onCancel={() => setDeleteModalOpen(false)}
-        confirmText={deleting ? 'Deleting...' : 'Delete Meeting'}
-      />
     </div>
   );
 };

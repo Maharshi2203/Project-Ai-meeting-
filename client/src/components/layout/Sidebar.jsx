@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         />
       )}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${!isOpen ? 'closed' : 'open'}`}>
         {/* Logo */}
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">
@@ -47,10 +47,11 @@ const Sidebar = ({ isOpen, onClose }) => {
           <span className="sidebar-logo-text">MeetingMind</span>
           <button
             onClick={onClose}
-            style={{ marginLeft: 'auto', display: 'none', color: 'var(--text-muted)' }}
-            className="mobile-close-btn"
+            style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}
+            className="sidebar-close-btn navbar-icon-btn"
+            title="Close Sidebar"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 

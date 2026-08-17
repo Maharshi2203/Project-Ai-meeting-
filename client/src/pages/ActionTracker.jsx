@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { actionService } from '../services/actionService';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { CheckSquare, Search, Filter, Trash2, Edit3, Loader2, PlusCircle, Link2, Calendar } from 'lucide-react';
+import { CheckSquare, Search, Filter, Trash2, Edit3, Loader2, Link2, Calendar } from 'lucide-react';
 
 const AVATAR_COLORS = ['avatar-indigo', 'avatar-teal', 'avatar-orange', 'avatar-violet'];
 
@@ -34,16 +34,23 @@ const formatDueDate = (dueDate) => {
 const PAGE_SIZE = 10;
 
 const ActionTracker = () => {
+  const location = useLocation();
   const [actionItems, setActionItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Filters
+  // Filters — pre-populated from URL query params (e.g. from Dashboard links)
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('status') || 'All';
+  });
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [ownerFilter, setOwnerFilter] = useState('All');
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('overdue') === 'true';
+  });
 
   // Edit Modal
   const [editItem, setEditItem] = useState(null);
@@ -273,6 +280,11 @@ const ActionTracker = () => {
                             <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.875rem', lineHeight: 1.4 }}>
                               {item.task}
                             </div>
+                            {item.evidence && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.2rem' }}>
+                                Source: "{item.evidence}"
+                              </div>
+                            )}
                             <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
                               Priority: <span style={{ color: item.priority === 'High' ? 'var(--danger)' : item.priority === 'Medium' ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 600 }}>{item.priority}</span>
                             </div>

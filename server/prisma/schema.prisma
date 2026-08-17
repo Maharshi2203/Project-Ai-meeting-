@@ -54,6 +54,7 @@ model ActionItem {
   dueDate   DateTime?
   priority  String    @default("Medium") // Low, Medium, High
   status    String    @default("Open") // Open, In Progress, Blocked, Completed
+  evidence  String?   @db.Text // Transcript quote / source sentence supporting task
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

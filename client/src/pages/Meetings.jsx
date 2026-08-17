@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { meetingService } from '../services/meetingService';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { FileText, Search, PlusCircle, Calendar, Users, Trash2, Edit3, ArrowRight, Loader2, Filter } from 'lucide-react';
@@ -15,15 +15,32 @@ const VALID_MEETING_TYPES = [
   'Other'
 ];
 
+const MEETINGS_PER_PAGE = 8;
+
 const Meetings = () => {
+  const location = useLocation();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('search') || '';
+  });
   const [selectedType, setSelectedType] = useState('All');
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const s = params.get('search');
+    if (s !== null) {
+      setSearch(s);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    setCurrentPage(1);
     fetchMeetings();
   }, [search, selectedType]);
 
@@ -50,6 +67,7 @@ const Meetings = () => {
       setMeetings((prev) => prev.filter((m) => m.id !== deleteId));
       setDeleteId(null);
     } catch (error) {
+      setDeleteError('Failed to delete meeting. Please try again.');
       console.error('Failed to delete meeting:', error);
     } finally {
       setDeleting(false);
@@ -120,80 +138,96 @@ const Meetings = () => {
           )}
         </div>
       ) : (
-        <div className="grid-cols-2">
-          {meetings.map((meeting) => (
-            <div key={meeting.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                {/* Type & Action Count */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{
-                    padding: '0.2rem 0.65rem',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    backgroundColor: 'var(--accent-light)',
-                    color: 'var(--accent-primary)',
-                    border: '1px solid var(--accent-glow)'
-                  }}>
-                    {meeting.meetingType}
-                  </span>
-                  <span className="badge badge-open" style={{ fontSize: '0.775rem' }}>
-                    {meeting._count?.actionItems || 0} Action Items
-                  </span>
+        <>
+          <div className="grid-cols-2">
+            {meetings.slice((currentPage - 1) * MEETINGS_PER_PAGE, currentPage * MEETINGS_PER_PAGE).map((meeting) => (
+              <div key={meeting.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  {/* Type & Action Count */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <span style={{
+                      padding: '0.2rem 0.65rem',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      backgroundColor: 'var(--accent-light)',
+                      color: 'var(--accent-primary)',
+                      border: '1px solid var(--accent-glow)'
+                    }}>
+                      {meeting.meetingType}
+                    </span>
+                    <span className="badge badge-open" style={{ fontSize: '0.775rem' }}>
+                      {meeting._count?.actionItems || 0} Action Items
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 style={{ fontSize: '1.2rem', marginBottom: '0.65rem', lineHeight: '1.3' }}>
+                    <Link to={`/meetings/${meeting.id}`} style={{ color: 'var(--text-primary)' }}>
+                      {meeting.title}
+                    </Link>
+                  </h3>
+
+                  {/* Meta details */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Calendar size={15} style={{ color: 'var(--text-muted)' }} />
+                      <span>{new Date(meeting.meetingDate).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    </div>
+                    {meeting.participants && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Users size={15} style={{ color: 'var(--text-muted)' }} />
+                        <span>{meeting.participants}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Title */}
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '0.65rem', lineHeight: '1.3' }}>
-                  <Link to={`/meetings/${meeting.id}`} style={{ color: 'var(--text-primary)' }}>
-                    {meeting.title}
-                  </Link>
-                </h3>
-
-                {/* Meta details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Calendar size={15} style={{ color: 'var(--text-muted)' }} />
-                    <span>{new Date(meeting.meetingDate).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <Link to={`/meetings/${meeting.id}/edit`} className="btn btn-secondary btn-sm" title="Edit Meeting">
+                      <Edit3 size={15} />
+                    </Link>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setDeleteId(meeting.id)}
+                      title="Delete Meeting"
+                      style={{ color: 'var(--danger)' }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
-                  {meeting.participants && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Users size={15} style={{ color: 'var(--text-muted)' }} />
-                      <span>{meeting.participants}</span>
-                    </div>
-                  )}
+
+                  <Link to={`/meetings/${meeting.id}`} className="btn btn-primary btn-sm" style={{ gap: '0.35rem' }}>
+                    <span>View Details</span>
+                    <ArrowRight size={14} />
+                  </Link>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Action Buttons */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--border-color)'
-              }}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <Link to={`/meetings/${meeting.id}/edit`} className="btn btn-secondary btn-sm" title="Edit Meeting">
-                    <Edit3 size={15} />
-                  </Link>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setDeleteId(meeting.id)}
-                    title="Delete Meeting"
-                    style={{ color: 'var(--danger)' }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-
-                <Link to={`/meetings/${meeting.id}`} className="btn btn-primary btn-sm" style={{ gap: '0.35rem' }}>
-                  <span>View Details</span>
-                  <ArrowRight size={14} />
-                </Link>
+          {/* Pagination footer */}
+          {meetings.length > MEETINGS_PER_PAGE && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem', padding: '0.75rem 1rem', backgroundColor: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Showing {(currentPage - 1) * MEETINGS_PER_PAGE + 1}–{Math.min(currentPage * MEETINGS_PER_PAGE, meetings.length)} of {meetings.length} meetings
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <button className="btn btn-ghost btn-sm" style={{ padding: '0.3rem 0.7rem', opacity: currentPage === 1 ? 0.35 : 1 }} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>‹</button>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0 0.4rem' }}>{currentPage} / {Math.ceil(meetings.length / MEETINGS_PER_PAGE)}</span>
+                <button className="btn btn-ghost btn-sm" style={{ padding: '0.3rem 0.7rem', opacity: currentPage === Math.ceil(meetings.length / MEETINGS_PER_PAGE) ? 0.35 : 1 }} onClick={() => setCurrentPage(p => Math.min(Math.ceil(meetings.length / MEETINGS_PER_PAGE), p + 1))} disabled={currentPage === Math.ceil(meetings.length / MEETINGS_PER_PAGE)}>›</button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -205,6 +239,14 @@ const Meetings = () => {
         onCancel={() => setDeleteId(null)}
         confirmText={deleting ? 'Deleting...' : 'Delete Meeting'}
       />
+
+      {/* Delete error toast */}
+      {deleteError && (
+        <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', backgroundColor: 'var(--danger)', color: '#fff', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', zIndex: 9998, fontSize: '0.875rem', fontWeight: 600 }}>
+          {deleteError}
+          <button onClick={() => setDeleteError('')} style={{ marginLeft: '1rem', color: '#fff', fontWeight: 700 }}>✕</button>
+        </div>
+      )}
     </div>
   );
 };

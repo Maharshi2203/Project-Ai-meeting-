@@ -4,13 +4,17 @@ import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
 const Layout = () => {
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
 
   return (
     <div className="app-container">
-      <Sidebar isOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="main-content">
-        <Navbar toggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
+        <Navbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
         <main className="page-body">
           <Outlet />
         </main>

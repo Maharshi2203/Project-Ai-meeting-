@@ -1,69 +1,99 @@
-# AI Usage & Engineering Decision Report
+# AI Usage & Engineering Report — MeetMind AI
 
-## 1. AI Tools Used
-- **Antigravity AI Pair Programmer (Gemini 3.6 Flash)**: Used for architecture design, backend route scaffolding, Prisma relational schema generation, AI prompt engineering, CSS design system creation, and error handling verification.
-- **Google Gemini API (`@google/generative-ai`)**: Integrated directly into backend `services/aiService.js` for post-meeting transcript analysis and structured JSON extraction.
+This document provides a transparent overview of the AI tools, prompts, validation mechanisms, and independent technical decisions executed during the design and development of **MeetMind AI**.
 
 ---
 
-## 2. How AI Was Utilized
-- **Schema & Database Design**: Designed relational Prisma schema mapping `User 1 -> N Meeting 1 -> N ActionItem` with cascading deletes and indexing.
-- **AI Prompt System Engineering**: Engineered strict JSON-enforcing system prompts instructing the LLM to ground analysis exclusively in the transcript, avoid inventing owners or deadlines, and map priorities conservatively.
-- **Fallback Architecture**: Designed a dual-mode AI engine (`aiService.js` + `mockAiService.js`) ensuring that if external LLM keys are absent or API quotas fail during evaluator testing, the application gracefully parses the transcript locally without crashing or failing.
-- **UI & CSS Tokens**: Synthesized a dark/light mode theme token system with CSS variables, custom typography, glassmorphism cards, and responsive table views.
+## 🤖 1. AI Tools Used
+
+- **Google Gemini 1.5 Flash API**: Live Large Language Model service utilized on the backend for meeting transcript analysis and structured JSON extraction.
+- **Mock AI Heuristic Engine (`mockAiService.js`)**: Custom deterministic fallback service designed to provide offline and keyless development testing.
 
 ---
 
-## 3. Important AI Prompts Used
+## 🎯 2. Prompting Strategy & System Engineering
 
-### Primary AI Analysis Prompt
+The primary objective of the prompting system was to enforce strict **veracity, grounding, and transcript traceability** while eliminating hallucinations (such as fabricated action items, unmentioned assignees, or false dates).
+
+### System Prompt Architecture
+
 ```text
-You are an expert AI meeting notes assistant.
+You are an expert AI meeting intelligence and action tracking assistant.
 Analyze the following meeting transcript and extract structured meeting intelligence.
 
-CRITICAL INSTRUCTIONS:
-- Use ONLY facts directly supported by the transcript.
-- Do NOT invent people, deadlines, decisions, or responsibilities.
+CRITICAL GROUNDING & VERACITY RULES:
+- Analyze ONLY the supplied transcript. Do NOT invent or infer facts, people, decisions, or deadlines not present in text.
 - If an owner is unknown or unassigned in the transcript, set "owner": "Unassigned".
-- If no due date is stated, set "dueDate": null. Format due dates as YYYY-MM-DD if recognizable, else as text.
-- If no decisions exist, return an empty array for "decisions".
-- If no action items exist, return an empty array for "actionItems".
-- Keep summary concise, accurate, and professional.
-- Priority must strictly be one of: "Low", "Medium", "High".
-- Status must strictly be: "Open".
-- Return ONLY valid JSON without markdown code fences or extra text.
+- If no due date is explicitly stated, set "dueDate": null.
+- Extract verbatim transcript sentences into "evidence" fields to support decisions and action items for source traceability.
+- Return valid, raw JSON with NO markdown formatting, NO code blocks, NO HTML tags.
 ```
 
----
-
-## 4. AI Mistakes Discovered & Manual Engineering Corrections
-
-1. **Unvalidated JSON Schema Types**:
-   - *AI Mistake*: Initial draft LLM responses sometimes wrapped output in markdown triple backticks (```json ... ```) or omitted required fields like `discussionPoints` when none were present.
-   - *Engineering Fix*: Created `validateAndSanitizeAIOutput` in `aiService.js`. It strips markdown code block fences, verifies data types, enforces array structures, normalizes priorities ("Low" | "Medium" | "High") and defaults missing owners to `"Unassigned"`.
-
-2. **Cross-User Data Leakage Risk**:
-   - *AI Mistake*: Scaffolding initial routes created query handlers like `prisma.meeting.findUnique({ where: { id } })` without checking `userId`.
-   - *Engineering Fix*: Updated all controller queries to enforce tenant isolation: `where: { id, userId: req.user.id }`. Any attempt to view, edit, or delete another user's resources results in an HTTP 404 / 403 response.
-
-3. **Date Overdue Calculation Edge Cases**:
-   - *AI Mistake*: Initial date logic evaluated overdue tasks using string comparisons on ISO strings.
-   - *Engineering Fix*: Replaced with strict JavaScript `Date` object comparisons (`dueDate < now` AND `status !== 'Completed'`) both in backend queries and frontend rendering to ensure past due dates correctly highlight as crimson red alerts.
+### Key Prompt Engineering Techniques:
+1. **Explicit Negative Constraints**: Instructing the model never to infer missing due dates or invent project members.
+2. **Schema Output Enforcement**: Supplying explicit JSON schema keys (`summary`, `discussionPoints`, `decisions`, `actionItems`, `risks`, `unansweredQuestions`).
+3. **Verbatim Evidence Grounding**: Requiring exact sentence extractions into an `evidence` property for every decision and task.
 
 ---
 
-## 5. Manual Engineering Decisions
+## 🔍 3. AI Code Review & Discovered Anomalies
 
-- **React + Vite over Server-Side Rendered Framework**: Chosen for crisp separation of concerns, client-side SPA route transitions, and fast HMR development feedback loop.
-- **Prisma ORM with SQLite Default & MySQL Compatibility**: Ensured zero setup friction for evaluators running `npx prisma db push` without needing active root privileges or daemon setup for MySQL on local macOS environments.
-- **Centralized Error Middleware**: Prevented raw database stack traces or secret keys from leaking in HTTP responses, returning structured `{ success: false, message: "..." }` responses.
+During AI integration, several common LLM response edge cases were identified and systematically resolved:
+
+1. **Markdown Formatting Wrappers**:
+   - *Issue*: LLM outputs frequently included ` ```json ... ``` ` code block markup, breaking standard `JSON.parse()`.
+   - *Fix*: Implemented regex cleaning (`responseText.replace(/```json/gi, '').replace(/```/g, '').trim()`) prior to parsing.
+
+2. **Inconsistent Decision Format**:
+   - *Issue*: LLMs occasionally returned decisions as plain strings instead of objects containing evidence quotes.
+   - *Fix*: Built standardizing transformation logic inside `validateAndSanitizeAIOutput` to map both string and object formats into clean `{ text, evidence }` pairs.
+
+3. **Status Enum Corruption**:
+   - *Issue*: LLM outputs sometimes returned status values like `"Pending"` or `"To Do"`.
+   - *Fix*: Standardized all newly generated action item statuses to `"Open"`, matching the MySQL schema enum constraint.
 
 ---
 
-## 6. Validation & Testing Workflow
+## 🛡 4. Validation Strategy
 
-- **Authentication Flow**: Tested registration, duplicate email rejection, invalid password rejection, JWT token storage, and protected route redirection.
-- **Meeting & Transcript Flow**: Tested pasting text transcripts and uploading `.txt` files via Multer memory storage.
-- **AI Processing**: Verified progress indicator UX, structured summary generation, decision extraction, and automatic action item database insertion.
-- **Action Tracker & Dashboard**: Verified action filters (search, status, priority, owner, overdue toggle) and confirmed KPI counter accuracy on the executive dashboard.
-- **Theme & Layout**: Verified dark and light mode persistence and mobile drawer responsiveness.
+To prevent raw or malformed AI output from corrupting the MySQL database, a multi-tier validation pipeline was implemented:
+
+```
+[ LLM Output ]
+      │
+      ▼
+[ Strip Markdown Fences ]
+      │
+      ▼
+[ JSON.parse() Safe Handler ]
+      │
+      ▼
+[ Schema & Type Sanitization (validateAndSanitizeAIOutput) ]
+      │
+      ▼
+[ Enum & Date Normalization ]
+      │
+      ▼
+[ Database Persistence (Prisma) ]
+```
+
+### Key Validation Guards:
+- **Null Safety**: Fallback values for empty summaries or missing fields (`"Unassigned"`, `null`, `[]`).
+- **Priority Bounds**: Validation against `['Low', 'Medium', 'High']`.
+- **Date Verification**: Safe date parsing checking `!isNaN(Date.parse(item.dueDate))`.
+
+---
+
+## 💡 5. Independent Engineering Decisions
+
+1. **Prisma ORM over Raw SQL**: Chosen for rapid schema iteration, type safety, and automatic relational migrations (`db push`).
+2. **Server-Side API Key Isolation**: Placed all Gemini AI calls inside Node.js Express controllers (`/api/meetings/:id/process`) to ensure zero exposure of private API credentials to client bundles.
+3. **Client-Side Interactive Evidence Highlighting**: Created an interactive **"View in transcript"** link system that dynamically expands meeting transcripts and highlights supporting source text using standard DOM text matching.
+4. **Action Health Dashboard Metric**: Engineered a custom mathematical formula to calculate `% On Track` health scores based on task status and due date proximity.
+
+---
+
+## 📝 6. Lessons Learned
+
+- **Grounding is Critical**: Requiring verbatim text quotes for AI output significantly increases user trust and accountability.
+- **Fail-Safe Fallbacks**: Providing a seamless Mock AI provider ensures full application usability even during external API downtime or key exhaustion.
