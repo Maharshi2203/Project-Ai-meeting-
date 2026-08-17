@@ -32,10 +32,10 @@ model Meeting {
   participants        String       @default("")
   transcript          String       @db.Text
   summary             String?      @db.Text
-  discussionPoints    String       @db.Text // Stored as JSON string
-  decisions           String       @db.Text // Stored as JSON string
-  risks               String       @db.Text // Stored as JSON string
-  unansweredQuestions String       @db.Text // Stored as JSON string
+  discussionPoints    String?      @db.Text // Stored as JSON string
+  decisions           String?      @db.Text // Stored as JSON string
+  risks               String?      @db.Text // Stored as JSON string
+  unansweredQuestions String?      @db.Text // Stored as JSON string
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
