@@ -182,33 +182,46 @@ const Dashboard = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {recentActions.map((item) => {
                 const isOverdue = item.dueDate ? new Date(item.dueDate) < new Date() && item.status !== 'Completed' : false;
+                const linkTarget = item.meetingId ? `/meetings/${item.meetingId}` : '/actions';
 
                 return (
-                  <div key={item.id} style={{
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: isOverdue ? 'var(--danger-bg)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border-color)'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div style={{ flex: 1, marginRight: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.task}</span>
-                        {isOverdue && <span className="badge badge-overdue">OVERDUE</span>}
+                  <Link key={item.id} to={linkTarget} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                    <div style={{
+                      padding: '0.85rem 1rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isOverdue ? 'var(--danger-bg)' : 'var(--bg-tertiary)',
+                      border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border-color)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = isOverdue ? 'var(--danger)' : 'var(--border-color)';
+                      e.currentTarget.style.transform = 'none';
+                    }}>
+                      <div style={{ flex: 1, marginRight: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.task}</span>
+                          {isOverdue && <span className="badge badge-overdue">OVERDUE</span>}
+                        </div>
+                        <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                          Owner: <strong style={{ color: 'var(--text-secondary)' }}>{item.owner}</strong> • Meeting: {item.meeting?.title}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                        Owner: <strong style={{ color: 'var(--text-secondary)' }}>{item.owner}</strong> • Meeting: {item.meeting?.title}
-                      </div>
-                    </div>
 
-                    <div>
-                      <span className={`badge badge-${item.status.toLowerCase().replace(' ', '-')}`}>
-                        {item.status}
-                      </span>
+                      <div>
+                        <span className={`badge badge-${item.status.toLowerCase().replace(' ', '-')}`}>
+                          {item.status}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
