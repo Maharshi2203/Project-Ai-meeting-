@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, AlertCircle, UserPlus } from 'lucide-react';
+import { AlertCircle, UserPlus } from 'lucide-react';
+import AuthLoadingOverlay from '../components/common/AuthLoadingOverlay';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -44,10 +45,11 @@ const Register = () => {
     try {
       setLoading(true);
       await register({ name, email, password, confirmPassword });
+      // Brief delay for smooth transition effect
+      await new Promise(resolve => setTimeout(resolve, 800));
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please check your details and try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -59,8 +61,16 @@ const Register = () => {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'var(--bg-primary)',
-      padding: '1.5rem'
+      padding: '1.5rem',
+      position: 'relative'
     }}>
+      {/* Custom Uiverse Loader Overlay shown after signup submission */}
+      <AuthLoadingOverlay
+        isOpen={loading}
+        title="Creating Your Account..."
+        subtitle="Setting up your profile and preparing your dashboard..."
+      />
+
       <div className="card" style={{ maxWidth: '460px', width: '100%', padding: '2.5rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <img

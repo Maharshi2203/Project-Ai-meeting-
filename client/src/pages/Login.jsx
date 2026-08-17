@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
+import AuthLoadingOverlay from '../components/common/AuthLoadingOverlay';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -30,10 +31,11 @@ const Login = () => {
     try {
       setLoading(true);
       await login({ email, password });
+      // Brief delay for smooth transition effect
+      await new Promise(resolve => setTimeout(resolve, 800));
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -45,8 +47,16 @@ const Login = () => {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'var(--bg-primary)',
-      padding: '1.5rem'
+      padding: '1.5rem',
+      position: 'relative'
     }}>
+      {/* Custom Uiverse Loader Overlay shown after login submission */}
+      <AuthLoadingOverlay
+        isOpen={loading}
+        title="Signing You In..."
+        subtitle="Verifying credentials and loading your workspace..."
+      />
+
       <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '2.5rem' }}>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -67,8 +77,6 @@ const Login = () => {
             Log in to access your AI meeting intelligence & action items
           </p>
         </div>
-
-
 
         {error && (
           <div style={{
