@@ -31,9 +31,12 @@ const formatDueDate = (dueDate) => {
   };
 };
 
+const PAGE_SIZE = 10;
+
 const ActionTracker = () => {
   const [actionItems, setActionItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -56,6 +59,7 @@ const ActionTracker = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchActionItems();
   }, [search, statusFilter, priorityFilter, ownerFilter, overdueOnly]);
 
@@ -133,6 +137,11 @@ const ActionTracker = () => {
   const overdueCount = actionItems.filter(i => i.isOverdue || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'Completed')).length;
   const activeCount = actionItems.filter(i => i.status !== 'Completed').length;
   const uniqueOwners = Array.from(new Set(actionItems.map(item => item.owner).filter(Boolean)));
+
+  const totalPages = Math.max(1, Math.ceil(actionItems.length / PAGE_SIZE));
+  const pagedItems = actionItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const startItem = actionItems.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * PAGE_SIZE, actionItems.length);
 
   return (
     <div>
@@ -249,7 +258,7 @@ const ActionTracker = () => {
                 </tr>
               </thead>
               <tbody>
-                {actionItems.map((item) => {
+                {pagedItems.map((item) => {
                   const isOverdue = item.isOverdue || (item.dueDate && new Date(item.dueDate) < new Date() && item.status !== 'Completed');
                   const due = item.dueDate ? formatDueDate(item.dueDate) : null;
                   const avatarClass = getAvatarColor(item.owner);
@@ -365,14 +374,27 @@ const ActionTracker = () => {
             </table>
           </div>
 
-          {/* Pagination info */}
+          {/* Pagination footer */}
           <div style={{ padding: '0.85rem 1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Showing 1–{actionItems.length} of {actionItems.length} items
+              Showing {startItem}–{endItem} of {actionItems.length} items
             </span>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <button className="btn btn-ghost btn-sm" style={{ padding: '0.3rem 0.6rem' }}>‹</button>
-              <button className="btn btn-ghost btn-sm" style={{ padding: '0.3rem 0.6rem' }}>›</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '0.3rem 0.7rem', opacity: currentPage === 1 ? 0.35 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >‹</button>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0 0.4rem' }}>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '0.3rem 0.7rem', opacity: currentPage === totalPages ? 0.35 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >›</button>
             </div>
           </div>
         </div>
