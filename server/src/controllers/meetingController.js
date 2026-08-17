@@ -347,15 +347,19 @@ const processMeetingAI = async (req, res, next) => {
       data: {
         meeting: {
           ...refreshedMeeting,
-          discussionPoints: aiResult.discussionPoints,
-          decisions: aiResult.decisions,
-          risks: aiResult.risks,
-          unansweredQuestions: aiResult.unansweredQuestions
+          discussionPoints: aiResult.discussionPoints || [],
+          decisions: aiResult.decisions || [],
+          risks: aiResult.risks || [],
+          unansweredQuestions: aiResult.unansweredQuestions || []
         }
       }
     });
   } catch (error) {
-    next(error);
+    console.error('[PROCESS MEETING AI ERROR]:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to analyze transcript with AI.'
+    });
   }
 };
 

@@ -29,6 +29,11 @@ export const meetingService = {
     return res.data;
   },
 
+  async processMeetingAI(id) {
+    const res = await api.post(`/meetings/${id}/process`);
+    return res.data;
+  },
+
   async processAI(id) {
     const res = await api.post(`/meetings/${id}/process`);
     return res.data;
