@@ -14,30 +14,24 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  User,
-  Shield,
+  Sparkles,
   Database,
   Cpu,
+  Shield,
   LogOut,
   ChevronRight
 } from 'lucide-react';
 
-const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
+const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-
-  const handleToggle = () => {
-    if (toggleSidebar) toggleSidebar();
-    else if (toggleMobileSidebar) toggleMobileSidebar();
-  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loadingNotifs, setLoadingNotifs] = useState(false);
 
   const notifRef = useRef(null);
   const settingsRef = useRef(null);
@@ -56,14 +50,13 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch notification data
+  // Fetch notifications
   useEffect(() => {
     fetchNotifications();
   }, []);
 
   const fetchNotifications = async () => {
     try {
-      setLoadingNotifs(true);
       const res = await actionService.getDashboardStats();
       const { recentActions, metrics } = res.data;
 
@@ -94,8 +87,6 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
       setUnreadCount(metrics.overdueActionItems > 0 ? metrics.overdueActionItems : notifList.length > 0 ? 1 : 0);
     } catch (err) {
       console.error('Failed to load notifications:', err);
-    } finally {
-      setLoadingNotifs(false);
     }
   };
 
@@ -115,41 +106,50 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
   };
 
   return (
-    <header className="navbar" style={{ position: 'relative', zIndex: 100 }}>
-      {/* 3-Line Sidebar Menu Toggle */}
-      <button
-        className="sidebar-toggle-btn navbar-icon-btn"
-        onClick={handleToggle}
-        title={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
-        aria-label={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Menu size={18} />
-      </button>
+    <header className="navbar">
+      {/* Left side: Toggle button + optional Brand text when sidebar is closed */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <button
+          className="navbar-icon-btn"
+          onClick={toggleSidebar}
+          title={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
+          aria-label={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
+        >
+          <Menu size={18} />
+        </button>
 
-      {/* Search bar */}
+        {!sidebarOpen && (
+          <div className="navbar-brand-mobile" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
+            <div className="sidebar-logo-icon" style={{ width: 30, height: 30 }}>
+              <Sparkles size={16} />
+            </div>
+            <span className="sidebar-logo-text" style={{ fontSize: '1.05rem' }}>MeetingMind</span>
+          </div>
+        )}
+      </div>
+
+      {/* Search Bar */}
       <form onSubmit={handleSearchSubmit} className="navbar-search">
-        <Search size={15} className="navbar-search-icon" />
+        <Search size={16} className="navbar-search-icon" />
         <input
           type="text"
-          placeholder="Search meetings, transcripts..."
+          placeholder="Search meetings, transcripts, actions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ paddingLeft: '2.25rem' }}
         />
       </form>
 
-      {/* Right actions */}
-      <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        {/* Theme Toggle */}
+      {/* Right Actions */}
+      <div className="navbar-actions">
+        {/* Theme Switcher Button */}
         <button
           onClick={toggleTheme}
           className="navbar-icon-btn"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
           {theme === 'dark'
-            ? <Sun size={17} style={{ color: '#fbbf24' }} />
-            : <Moon size={17} style={{ color: '#6366f1' }} />
+            ? <Sun size={18} style={{ color: '#fbbf24' }} />
+            : <Moon size={18} style={{ color: '#6366f1' }} />
           }
         </button>
 
@@ -162,14 +162,13 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
               setShowNotifications(prev => !prev);
               setShowSettings(false);
             }}
-            style={{ position: 'relative' }}
           >
-            <Bell size={17} />
+            <Bell size={18} />
             {unreadCount > 0 && (
               <span style={{
                 position: 'absolute',
-                top: '4px',
-                right: '4px',
+                top: '5px',
+                right: '5px',
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
@@ -179,22 +178,23 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
             )}
           </button>
 
-          {/* Notification Popover Panel */}
+          {/* Notifications Popover */}
           {showNotifications && (
             <div style={{
               position: 'absolute',
-              top: 'calc(100% + 8px)',
+              top: 'calc(100% + 10px)',
               right: 0,
-              width: '340px',
+              width: '350px',
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-lg)',
-              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.4)',
+              boxShadow: 'var(--card-shadow-hover)',
               overflow: 'hidden',
-              zIndex: 1000
+              zIndex: 1000,
+              animation: 'fadeIn 0.2s ease'
             }}>
               <div style={{
-                padding: '0.85rem 1rem',
+                padding: '0.85rem 1.15rem',
                 borderBottom: '1px solid var(--border-color)',
                 display: 'flex',
                 alignItems: 'center',
@@ -203,14 +203,14 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Bell size={16} style={{ color: 'var(--accent-primary)' }} />
-                  <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>Notifications</span>
+                  <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>Notifications</span>
                 </div>
                 {unreadCount > 0 && (
                   <button
                     onClick={() => setUnreadCount(0)}
                     style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: '600' }}
                   >
-                    Mark as read
+                    Mark read
                   </button>
                 )}
               </div>
@@ -219,7 +219,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                 {notifications.length === 0 ? (
                   <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                     <CheckCircle size={28} style={{ color: 'var(--success)', marginBottom: '0.5rem', opacity: 0.8 }} />
-                    <p style={{ margin: 0 }}>All caught up! No new notifications.</p>
+                    <p style={{ margin: 0 }}>All caught up! No active notifications.</p>
                   </div>
                 ) : (
                   notifications.map((item) => (
@@ -227,7 +227,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                       key={item.id}
                       onClick={() => handleNotificationClick(item.link)}
                       style={{
-                        padding: '0.85rem 1rem',
+                        padding: '0.85rem 1.15rem',
                         borderBottom: '1px solid var(--border-color)',
                         cursor: 'pointer',
                         display: 'flex',
@@ -258,7 +258,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
               </div>
 
               <div style={{
-                padding: '0.65rem 1rem',
+                padding: '0.65rem 1.15rem',
                 borderTop: '1px solid var(--border-color)',
                 textAlign: 'center',
                 backgroundColor: 'var(--bg-tertiary)'
@@ -267,7 +267,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                   onClick={() => handleNotificationClick('/actions')}
                   style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                 >
-                  <span>View All Action Items</span>
+                  <span>View Action Tracker</span>
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -279,32 +279,32 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
         <div ref={settingsRef} style={{ position: 'relative' }}>
           <button
             className="navbar-icon-btn"
-            title="Settings & System Status"
+            title="Settings & System Diagnostics"
             onClick={() => {
               setShowSettings(prev => !prev);
               setShowNotifications(false);
             }}
           >
-            <Settings size={17} />
+            <Settings size={18} />
           </button>
 
           {/* Settings Popover Panel */}
           {showSettings && (
             <div style={{
               position: 'absolute',
-              top: 'calc(100% + 8px)',
+              top: 'calc(100% + 10px)',
               right: 0,
               width: '320px',
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-lg)',
-              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.4)',
+              boxShadow: 'var(--card-shadow-hover)',
               overflow: 'hidden',
-              zIndex: 1000
+              zIndex: 1000,
+              animation: 'fadeIn 0.2s ease'
             }}>
-              {/* Header */}
               <div style={{
-                padding: '0.85rem 1rem',
+                padding: '0.85rem 1.15rem',
                 borderBottom: '1px solid var(--border-color)',
                 display: 'flex',
                 alignItems: 'center',
@@ -313,7 +313,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Settings size={16} style={{ color: 'var(--accent-primary)' }} />
-                  <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>Settings & System</span>
+                  <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>Settings & System</span>
                 </div>
                 <button onClick={() => setShowSettings(false)} style={{ color: 'var(--text-muted)' }}>
                   <X size={16} />
@@ -321,7 +321,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
               </div>
 
               <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Account Profile Card */}
+                {/* Profile Card */}
                 <div style={{
                   padding: '0.85rem',
                   borderRadius: 'var(--radius-md)',
@@ -335,7 +335,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                     width: 38,
                     height: 38,
                     borderRadius: '50%',
-                    backgroundColor: 'var(--accent-primary)',
+                    background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
                     color: '#ffffff',
                     fontWeight: '700',
                     display: 'flex',
@@ -356,7 +356,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                   </div>
                 </div>
 
-                {/* Appearance Toggle Row */}
+                {/* Appearance Toggle */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Appearance</span>
                   <button
@@ -365,13 +365,13 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                     style={{ gap: '0.4rem', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
                   >
                     {theme === 'dark' ? <Sun size={14} style={{ color: '#fbbf24' }} /> : <Moon size={14} style={{ color: '#6366f1' }} />}
-                    <span>{theme === 'dark' ? 'Dark Theme' : 'Light Theme'}</span>
+                    <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
                   </button>
                 </div>
 
-                {/* System Diagnostics */}
+                {/* System Info */}
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                  <div style={{ fontSize: '0.725rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
                     System Architecture
                   </div>
 
@@ -387,7 +387,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
                         <Cpu size={14} style={{ color: 'var(--accent-primary)' }} />
-                        <span>AI Transcript Engine</span>
+                        <span>AI Engine</span>
                       </span>
                       <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '0.775rem' }}>Gemini Active</span>
                     </div>
@@ -402,7 +402,7 @@ const Navbar = ({ toggleSidebar, toggleMobileSidebar, sidebarOpen }) => {
                   </div>
                 </div>
 
-                {/* Logout Action */}
+                {/* Sign Out */}
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
                   <button
                     onClick={() => {
