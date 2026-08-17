@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { actionService } from '../services/actionService';
-import { FileText, CheckSquare, Clock, AlertTriangle, CheckCircle, PlusCircle, ArrowRight, Loader2, Calendar } from 'lucide-react';
+import { FileText, CheckSquare, Clock, AlertTriangle, CheckCircle, ArrowRight, Loader2, Calendar } from 'lucide-react';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -58,15 +58,9 @@ const Dashboard = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="page-title">Executive Dashboard</h1>
-          <p className="page-subtitle" style={{ marginBottom: 0 }}>Overview of meeting intelligence & task resolution status</p>
-        </div>
-        <Link to="/meetings/new" className="btn btn-primary">
-          <PlusCircle size={18} />
-          <span>New Meeting</span>
-        </Link>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 className="page-title">Executive Dashboard</h1>
+        <p className="page-subtitle" style={{ marginBottom: 0 }}>Overview of meeting intelligence & task resolution status</p>
       </div>
 
       {/* KPI Stat Cards Grid */}
