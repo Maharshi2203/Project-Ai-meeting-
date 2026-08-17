@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # MySQL Database Container
+  db:
+    image: mysql:8.0
+    container_name: meetingmind_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_2026
+      MYSQL_DATABASE: ai_meeting_db
+      MYSQL_USER: meeting_user
+      MYSQL_PASSWORD: meeting_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Express Node.js Backend API Container
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: meetingmind_backend
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      PORT: 5001
+      DATABASE_URL: "mysql://meeting_user:meeting_password@db:3306/ai_meeting_db"
+      JWT_SECRET: "super_secret_ai_meeting_notes_tracker_jwt_key_2026"
+      AI_PROVIDER: "mock" # Set to "gemini" if using live Gemini API
+      AI_API_KEY: ""     # Optional: Your Gemini API Key
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Vite React Frontend Web Container
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: meetingmind_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:5001/api"
+    depends_on:
+      - server
+
+volumes:
+  mysql_data:
