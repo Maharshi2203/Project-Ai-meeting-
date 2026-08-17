@@ -161,17 +161,19 @@ const ActionTracker = () => {
           </p>
         </div>
 
-        {/* Stat chips + Quick Add */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+        {/* Stat chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           {overdueCount > 0 && (
             <div className="stat-chip stat-chip-danger">
-              <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--danger)', display: 'inline-block' }} />
-              <span>OVERDUE: <strong>{overdueCount}</strong></span>
+              <span className="stat-chip-dot" />
+              <span className="stat-chip-label">Overdue</span>
+              <span className="stat-chip-value">{overdueCount}</span>
             </div>
           )}
           <div className="stat-chip stat-chip-success">
-            <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }} />
-            <span>ACTIVE: <strong>{activeCount}</strong></span>
+            <span className="stat-chip-dot" />
+            <span className="stat-chip-label">Active Tasks</span>
+            <span className="stat-chip-value">{activeCount}</span>
           </div>
         </div>
       </div>
