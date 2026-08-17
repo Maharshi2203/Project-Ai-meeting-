@@ -1,0 +1,17 @@
+Project kickoff meeting between the client and development team.
+
+The team discusses the MVP scope, technology stack, timeline, authentication, dashboard, reporting and deployment.
+
+The client approves React for the frontend and Node.js for the backend.
+
+The team agrees that the MVP should be ready by September 15.
+
+Rahul will prepare the authentication module by September 5.
+
+Priya will prepare the database schema.
+
+The client will provide the final branding assets by September 3.
+
+There is concern about the reporting requirements because some details are still unclear.
+
+The team agrees to schedule a follow-up discussion about reporting.

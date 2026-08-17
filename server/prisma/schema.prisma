@@ -1,0 +1,64 @@
+// Prisma Schema for AI Meeting Notes & Action Tracker
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  meetings    Meeting[]
+  actionItems ActionItem[]
+
+  @@map("users")
+}
+
+model Meeting {
+  id                  String       @id @default(uuid())
+  userId              String
+  title               String
+  meetingDate         DateTime
+  meetingType         String       @default("Internal Meeting")
+  participants        String       @default("")
+  transcript          String
+  summary             String?      @default("")
+  discussionPoints    String       @default("[]") // Stored as JSON string
+  decisions           String       @default("[]") // Stored as JSON string
+  risks               String       @default("[]") // Stored as JSON string
+  unansweredQuestions String       @default("[]") // Stored as JSON string
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionItems ActionItem[]
+
+  @@map("meetings")
+}
+
+model ActionItem {
+  id        String    @id @default(uuid())
+  meetingId String
+  userId    String
+  task      String
+  owner     String    @default("Unassigned")
+  dueDate   DateTime?
+  priority  String    @default("Medium") // Low, Medium, High
+  status    String    @default("Open") // Open, In Progress, Blocked, Completed
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("action_items")
+}
