@@ -62,7 +62,12 @@ const MeetingDetails = () => {
     try {
       setAiError('');
       setProcessingAI(true);
-      const res = await meetingService.processAI(id);
+
+      // Run the API call and a minimum 5-second timer in parallel
+      const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
+      const apiCall = meetingService.processAI(id);
+
+      const [, res] = await Promise.all([minDelay, apiCall]);
       setMeeting(res.data.meeting);
     } catch (err) {
       setAiError(err.response?.data?.message || 'AI transcript processing failed. Please try again.');
