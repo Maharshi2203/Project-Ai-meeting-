@@ -4,7 +4,8 @@ import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
 const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Sidebar starts collapsed by default on initial app load as requested
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
