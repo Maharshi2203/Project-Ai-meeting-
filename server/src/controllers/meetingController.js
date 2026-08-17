@@ -319,6 +319,11 @@ const processMeetingAI = async (req, res, next) => {
         }
       }
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const debugPdfExtraction = async (req, res, next) => {
   try {
     if (process.env.NODE_ENV === 'production') {
