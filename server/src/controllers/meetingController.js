@@ -3,6 +3,20 @@ const { validateMeeting } = require('../validators/meetingValidator');
 const { processTranscriptWithAI } = require('../services/aiService');
 const { extractPdfTextWithReadingOrder } = require('../utils/pdfExtractor');
 
+/**
+ * Helper to safely parse JSON or array values without throwing unhandled exceptions.
+ */
+const safeJsonParse = (value, fallback = []) => {
+  if (!value) return fallback;
+  if (Array.isArray(value) || (typeof value === 'object' && value !== null)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : fallback);
+  } catch (e) {
+    return typeof value === 'string' && value.trim() ? [value.trim()] : fallback;
+  }
+};
+
 const createMeeting = async (req, res, next) => {
   try {
     let transcriptText = req.body.transcript || '';
@@ -136,10 +150,10 @@ const getMeetingById = async (req, res, next) => {
     // Safely parse JSON strings for frontend consumption
     const formattedMeeting = {
       ...meeting,
-      discussionPoints: JSON.parse(meeting.discussionPoints || '[]'),
-      decisions: JSON.parse(meeting.decisions || '[]'),
-      risks: JSON.parse(meeting.risks || '[]'),
-      unansweredQuestions: JSON.parse(meeting.unansweredQuestions || '[]')
+      discussionPoints: safeJsonParse(meeting.discussionPoints),
+      decisions: safeJsonParse(meeting.decisions),
+      risks: safeJsonParse(meeting.risks),
+      unansweredQuestions: safeJsonParse(meeting.unansweredQuestions)
     };
 
     return res.status(200).json({
@@ -186,10 +200,10 @@ const updateMeeting = async (req, res, next) => {
 
     const formattedUpdated = {
       ...updated,
-      discussionPoints: JSON.parse(updated.discussionPoints || '[]'),
-      decisions: JSON.parse(updated.decisions || '[]'),
-      risks: JSON.parse(updated.risks || '[]'),
-      unansweredQuestions: JSON.parse(updated.unansweredQuestions || '[]')
+      discussionPoints: safeJsonParse(updated.discussionPoints),
+      decisions: safeJsonParse(updated.decisions),
+      risks: safeJsonParse(updated.risks),
+      unansweredQuestions: safeJsonParse(updated.unansweredQuestions)
     };
 
     return res.status(200).json({
@@ -256,7 +270,7 @@ const processMeetingAI = async (req, res, next) => {
     const aiResult = await processTranscriptWithAI(meeting.transcript);
 
     // Save structured details in meeting record
-    const updatedMeeting = await prisma.meeting.update({
+    await prisma.meeting.update({
       where: { id },
       data: {
         summary: aiResult.summary,
@@ -267,34 +281,55 @@ const processMeetingAI = async (req, res, next) => {
       }
     });
 
-    // Delete previous action items for this meeting to ensure reprocessing consistency
-    await prisma.actionItem.deleteMany({
+    // Fetch existing action items to preserve manual user updates and completed tasks
+    const existingActionItems = await prisma.actionItem.findMany({
       where: { meetingId: id }
     });
 
-    // Insert newly extracted action items
+    const userModifiedMap = new Map();
+    existingActionItems.forEach(item => {
+      // Keep items that were edited or updated by user (non-Open status or custom assigned owner)
+      if (item.status !== 'Open' || (item.owner && item.owner !== 'Unassigned')) {
+        userModifiedMap.set(item.task.toLowerCase().trim(), item);
+      }
+    });
+
+    // Delete obsolete unmodified open action items
+    await prisma.actionItem.deleteMany({
+      where: {
+        meetingId: id,
+        status: 'Open',
+        owner: 'Unassigned'
+      }
+    });
+
+    // Insert newly extracted action items if not already present with user edits
     if (aiResult.actionItems && aiResult.actionItems.length > 0) {
-      const newActionsData = aiResult.actionItems.map(item => {
-        let parsedDate = null;
-        if (item.dueDate && !isNaN(Date.parse(item.dueDate))) {
-          parsedDate = new Date(item.dueDate);
-        }
+      const newActionsData = aiResult.actionItems
+        .filter(item => !userModifiedMap.has(item.task.toLowerCase().trim()))
+        .map(item => {
+          let parsedDate = null;
+          if (item.dueDate && !isNaN(Date.parse(item.dueDate))) {
+            parsedDate = new Date(item.dueDate);
+          }
 
-        return {
-          meetingId: id,
-          userId: req.user.id,
-          task: item.task,
-          owner: item.owner || 'Unassigned',
-          dueDate: parsedDate,
-          priority: item.priority || 'Medium',
-          status: item.status || 'Open',
-          evidence: item.evidence || item.task
-        };
-      });
+          return {
+            meetingId: id,
+            userId: req.user.id,
+            task: item.task,
+            owner: item.owner || 'Unassigned',
+            dueDate: parsedDate,
+            priority: item.priority || 'Medium',
+            status: item.status || 'Open',
+            evidence: item.evidence || item.task
+          };
+        });
 
-      await prisma.actionItem.createMany({
-        data: newActionsData
-      });
+      if (newActionsData.length > 0) {
+        await prisma.actionItem.createMany({
+          data: newActionsData
+        });
+      }
     }
 
     const refreshedMeeting = await prisma.meeting.findFirst({

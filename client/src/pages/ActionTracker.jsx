@@ -31,11 +31,22 @@ const formatDueDate = (dueDate) => {
   };
 };
 
+const formatLocalDateForInput = (dateObj) => {
+  if (!dateObj) return '';
+  const d = new Date(dateObj);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const PAGE_SIZE = 10;
 
 const ActionTracker = () => {
   const location = useLocation();
   const [actionItems, setActionItems] = useState([]);
+  const [allOwners, setAllOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -64,6 +75,20 @@ const ActionTracker = () => {
   // Delete Modal
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Fetch all unique owners on initial load
+  useEffect(() => {
+    const fetchMasterOwners = async () => {
+      try {
+        const res = await actionService.getActionItems({});
+        const owners = Array.from(new Set(res.data.actionItems.map(i => i.owner).filter(Boolean)));
+        setAllOwners(owners);
+      } catch (err) {
+        console.error('Failed to fetch master owners list:', err);
+      }
+    };
+    fetchMasterOwners();
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -101,7 +126,7 @@ const ActionTracker = () => {
     setEditItem(item);
     setEditTask(item.task);
     setEditOwner(item.owner || 'Unassigned');
-    setEditDueDate(item.dueDate ? new Date(item.dueDate).toISOString().split('T')[0] : '');
+    setEditDueDate(formatLocalDateForInput(item.dueDate));
     setEditPriority(item.priority || 'Medium');
     setEditStatus(item.status || 'Open');
   };
@@ -143,7 +168,7 @@ const ActionTracker = () => {
 
   const overdueCount = actionItems.filter(i => i.isOverdue || (i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'Completed')).length;
   const activeCount = actionItems.filter(i => i.status !== 'Completed').length;
-  const uniqueOwners = Array.from(new Set(actionItems.map(item => item.owner).filter(Boolean)));
+  const uniqueOwners = Array.from(new Set([...allOwners, ...actionItems.map(item => item.owner).filter(Boolean)]));
 
   const totalPages = Math.max(1, Math.ceil(actionItems.length / PAGE_SIZE));
   const pagedItems = actionItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);

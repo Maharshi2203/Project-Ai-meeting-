@@ -33,13 +33,23 @@ const EditMeeting = () => {
     fetchMeeting();
   }, [id]);
 
+  const formatLocalDate = (dateObj) => {
+    if (!dateObj) return '';
+    const d = new Date(dateObj);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const fetchMeeting = async () => {
     try {
       setLoading(true);
       const res = await meetingService.getMeetingById(id);
       const m = res.data.meeting;
       setTitle(m.title);
-      setMeetingDate(m.meetingDate ? new Date(m.meetingDate).toISOString().split('T')[0] : '');
+      setMeetingDate(formatLocalDate(m.meetingDate));
       setMeetingType(m.meetingType);
       setParticipants(m.participants || '');
       setTranscript(m.transcript || '');
