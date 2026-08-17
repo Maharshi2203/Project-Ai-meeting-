@@ -63,30 +63,7 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Demo Credentials Quick-Fill Banner */}
-        <div style={{
-          padding: '0.75rem 1rem',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--accent-light)',
-          border: '1px solid var(--accent-glow)',
-          fontSize: '0.825rem',
-          color: 'var(--accent-primary)',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <strong>Demo User:</strong> demo@example.com / password123
-          </div>
-          <button
-            type="button"
-            onClick={() => { setEmail('demo@example.com'); setPassword('password123'); }}
-            style={{ fontWeight: '700', textDecoration: 'underline', color: 'var(--accent-primary)', fontSize: '0.8rem' }}
-          >
-            Auto-fill
-          </button>
-        </div>
+
 
         {error && (
           <div style={{
