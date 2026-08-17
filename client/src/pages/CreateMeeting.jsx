@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { meetingService } from '../services/meetingService';
 import RichTextEditor from '../components/common/RichTextEditor';
-import { ArrowLeft, Save, Upload, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Upload, FileText, AlertCircle, File } from 'lucide-react';
 
 const MEETING_TYPES = [
   'Client Meeting',
@@ -32,8 +32,12 @@ const CreateMeeting = () => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.toLowerCase().endsWith('.txt')) {
-      setError('Unsupported file type. Please upload a plain text (.txt) transcript.');
+    const name = selectedFile.name.toLowerCase();
+    const isTxt = name.endsWith('.txt');
+    const isPdf = name.endsWith('.pdf');
+
+    if (!isTxt && !isPdf) {
+      setError('Unsupported file type. Please upload a plain text (.txt) or PDF (.pdf) transcript.');
       setFile(null);
       return;
     }
@@ -67,7 +71,7 @@ const CreateMeeting = () => {
     }
 
     if (inputMethod === 'file' && !file) {
-      setError('Please select a valid .txt transcript file to upload.');
+      setError('Please select a valid .txt or .pdf transcript file to upload.');
       return;
     }
 
@@ -212,7 +216,7 @@ const CreateMeeting = () => {
                 style={{ flex: 1, gap: '0.5rem' }}
               >
                 <Upload size={18} />
-                <span>Upload .txt File</span>
+                <span>Upload .txt / .pdf File</span>
               </button>
             </div>
 
@@ -236,21 +240,22 @@ const CreateMeeting = () => {
                 <Upload size={36} style={{ color: 'var(--accent-primary)', marginBottom: '0.75rem' }} />
                 <h4 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Upload Transcript File</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Supports plain text files (.txt) up to 5MB
+                  Supports plain text (.txt) and PDF (.pdf) documents up to 5MB
                 </p>
                 <input
                   type="file"
-                  accept=".txt"
+                  accept=".txt,.pdf"
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
-                  id="txt-upload-input"
+                  id="transcript-upload-input"
                 />
-                <label htmlFor="txt-upload-input" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                  Choose .txt File
+                <label htmlFor="transcript-upload-input" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
+                  Choose .txt / .pdf File
                 </label>
                 {file && (
-                  <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--success)', fontWeight: '600' }}>
-                    Selected file: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--success)', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                    <File size={16} />
+                    <span>Selected file: {file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
                   </div>
                 )}
               </div>

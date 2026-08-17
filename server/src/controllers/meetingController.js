@@ -1,20 +1,33 @@
 const prisma = require('../config/database');
 const { validateMeeting } = require('../validators/meetingValidator');
 const { processTranscriptWithAI } = require('../services/aiService');
+const pdfParse = require('pdf-parse');
 
 const createMeeting = async (req, res, next) => {
   try {
     let transcriptText = req.body.transcript || '';
 
-    // If file uploaded, read contents
+    // If file uploaded, read contents (.txt or .pdf)
     if (req.file) {
-      if (!req.file.originalname.toLowerCase().endsWith('.txt')) {
+      const fileName = req.file.originalname.toLowerCase();
+      if (fileName.endsWith('.txt')) {
+        transcriptText = req.file.buffer.toString('utf8');
+      } else if (fileName.endsWith('.pdf')) {
+        try {
+          const pdfData = await pdfParse(req.file.buffer);
+          transcriptText = pdfData.text || '';
+        } catch (pdfErr) {
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to extract text from uploaded PDF file. Please ensure it is a valid PDF document.'
+          });
+        }
+      } else {
         return res.status(400).json({
           success: false,
-          message: 'Only .txt files are supported for transcript uploads.'
+          message: 'Only .txt and .pdf files are supported for transcript uploads.'
         });
       }
-      transcriptText = req.file.buffer.toString('utf8');
     }
 
     const payload = { ...req.body, transcript: transcriptText };

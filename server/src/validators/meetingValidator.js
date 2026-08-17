@@ -28,7 +28,7 @@ const validateMeeting = (data, file) => {
   const hasFile = !!file;
 
   if (!hasTranscriptText && !hasFile) {
-    errors.push('Meeting transcript is required. Please enter text or upload a .txt file.');
+    errors.push('Meeting transcript is required. Please enter text or upload a .txt or .pdf file.');
   }
 
   return {
