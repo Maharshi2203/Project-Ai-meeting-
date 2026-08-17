@@ -1,7 +1,22 @@
 const prisma = require('../config/database');
 const { validateMeeting } = require('../validators/meetingValidator');
 const { processTranscriptWithAI } = require('../services/aiService');
-const pdfParse = require('pdf-parse');
+const pdfModule = require('pdf-parse');
+
+const extractPdfText = async (buffer) => {
+  if (pdfModule.PDFParse) {
+    const parser = new pdfModule.PDFParse({ data: buffer });
+    const pdfData = await parser.getText();
+    return pdfData.text || '';
+  } else if (typeof pdfModule === 'function') {
+    const pdfData = await pdfModule(buffer);
+    return pdfData.text || '';
+  } else if (pdfModule.default && typeof pdfModule.default === 'function') {
+    const pdfData = await pdfModule.default(buffer);
+    return pdfData.text || '';
+  }
+  throw new Error('Unsupported pdf-parse module structure.');
+};
 
 const createMeeting = async (req, res, next) => {
   try {
@@ -14,9 +29,15 @@ const createMeeting = async (req, res, next) => {
         transcriptText = req.file.buffer.toString('utf8');
       } else if (fileName.endsWith('.pdf')) {
         try {
-          const pdfData = await pdfParse(req.file.buffer);
-          transcriptText = pdfData.text || '';
+          transcriptText = await extractPdfText(req.file.buffer);
+          if (!transcriptText || !transcriptText.trim()) {
+            return res.status(400).json({
+              success: false,
+              message: 'No readable text could be extracted from this PDF document. If it is a scanned image, please paste text manually.'
+            });
+          }
         } catch (pdfErr) {
+          console.error('PDF Parsing Error:', pdfErr);
           return res.status(400).json({
             success: false,
             message: 'Failed to extract text from uploaded PDF file. Please ensure it is a valid PDF document.'
