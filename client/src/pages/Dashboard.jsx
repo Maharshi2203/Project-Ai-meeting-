@@ -179,7 +179,7 @@ const Dashboard = () => {
               <p>All action items are clear or completed.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
               {recentActions.map((item) => {
                 const isOverdue = item.dueDate ? new Date(item.dueDate) < new Date() && item.status !== 'Completed' : false;
                 const linkTarget = item.meetingId ? `/meetings/${item.meetingId}` : '/actions';
