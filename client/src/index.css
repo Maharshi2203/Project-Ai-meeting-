@@ -14,7 +14,7 @@
   
   --accent-primary: #4f46e5;
   --accent-primary-hover: #4338ca;
-  --accent-light: #eeef2;
+  --accent-light: #eef2ff;
   --accent-glow: rgba(79, 70, 229, 0.15);
   
   --success: #10b981;
@@ -191,11 +191,12 @@ input:focus, textarea:focus, select:focus {
 
 .btn-primary {
   background-color: var(--accent-primary);
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .btn-primary:hover {
   background-color: var(--accent-primary-hover);
+  color: #ffffff !important;
   box-shadow: 0 4px 12px var(--accent-glow);
   transform: translateY(-1px);
 }
@@ -207,16 +208,19 @@ input:focus, textarea:focus, select:focus {
 }
 
 .btn-secondary:hover {
-  background-color: var(--border-color);
+  background-color: var(--border-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
 }
 
 .btn-danger {
   background-color: var(--danger);
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .btn-danger:hover {
   opacity: 0.9;
+  color: #ffffff !important;
 }
 
 .btn-sm {
