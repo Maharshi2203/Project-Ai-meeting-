@@ -8,7 +8,7 @@
 
 - **Frontend**: React, Vite, React Router v6, Axios, Lucide Icons, Custom CSS Design System with HSL Theme Tokens (Dark & Light Mode).
 - **Backend**: Node.js, Express.js, REST APIs, JWT authentication, `bcryptjs` password hashing, Multer file upload handling, Centralized Express error handler.
-- **Database & ORM**: SQLite / MySQL ready via Prisma ORM with relational foreign key cascading.
+- **Database & ORM**: MySQL database (`ai_meeting_db` on port 3306) via Prisma ORM with relational foreign key cascading.
 - **AI Integration**: Backend AI Service supporting Google Gemini API (`@google/generative-ai`) with automatic fallback to an Intelligent Local NLP Mock Provider for offline or keyless execution.
 
 ---

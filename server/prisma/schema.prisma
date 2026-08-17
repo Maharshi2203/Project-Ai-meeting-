@@ -1,11 +1,11 @@
-// Prisma Schema for AI Meeting Notes & Action Tracker
+// Prisma Schema for AI Meeting Notes & Action Tracker (MySQL)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -30,12 +30,12 @@ model Meeting {
   meetingDate         DateTime
   meetingType         String       @default("Internal Meeting")
   participants        String       @default("")
-  transcript          String
-  summary             String?      @default("")
-  discussionPoints    String       @default("[]") // Stored as JSON string
-  decisions           String       @default("[]") // Stored as JSON string
-  risks               String       @default("[]") // Stored as JSON string
-  unansweredQuestions String       @default("[]") // Stored as JSON string
+  transcript          String       @db.Text
+  summary             String?      @db.Text
+  discussionPoints    String       @db.Text // Stored as JSON string
+  decisions           String       @db.Text // Stored as JSON string
+  risks               String       @db.Text // Stored as JSON string
+  unansweredQuestions String       @db.Text // Stored as JSON string
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
@@ -49,7 +49,7 @@ model ActionItem {
   id        String    @id @default(uuid())
   meetingId String
   userId    String
-  task      String
+  task      String    @db.Text
   owner     String    @default("Unassigned")
   dueDate   DateTime?
   priority  String    @default("Medium") // Low, Medium, High
