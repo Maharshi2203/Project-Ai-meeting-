@@ -42,9 +42,17 @@ const Sidebar = ({ isOpen, onClose }) => {
       <aside className={`sidebar ${!isOpen ? 'closed' : 'open'}`}>
         {/* Logo */}
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">
-            <Sparkles size={19} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="MeetingMind Logo"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--radius-md)',
+              objectFit: 'contain',
+              boxShadow: '0 4px 12px var(--accent-glow)'
+            }}
+          />
           <span className="sidebar-logo-text">MeetingMind</span>
           <button
             onClick={onClose}

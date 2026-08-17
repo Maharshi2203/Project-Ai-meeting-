@@ -43,20 +43,19 @@ const Login = () => {
     }}>
       <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '2.5rem' }}>
         {/* Brand Header */}
-        <div style={{ textAlignment: 'center', textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: 48, height: 48,
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--accent-primary)',
-            color: '#ffffff',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '0.75rem',
-            boxShadow: '0 4px 14px var(--accent-glow)'
-          }}>
-            <Sparkles size={26} />
-          </div>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <img
+            src="/logo.png"
+            alt="MeetingMind Logo"
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 'var(--radius-lg)',
+              objectFit: 'contain',
+              marginBottom: '0.75rem',
+              boxShadow: '0 6px 20px var(--accent-glow)'
+            }}
+          />
           <h1 style={{ fontSize: '1.65rem', marginBottom: '0.35rem' }}>Welcome Back</h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             Log in to access your AI meeting intelligence & action items

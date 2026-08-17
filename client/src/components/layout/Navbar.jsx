@@ -120,9 +120,17 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
 
         {!sidebarOpen && (
           <div className="navbar-brand-mobile" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
-            <div className="sidebar-logo-icon" style={{ width: 30, height: 30 }}>
-              <Sparkles size={16} />
-            </div>
+            <img
+              src="/logo.png"
+              alt="MeetingMind Logo"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'contain',
+                boxShadow: '0 4px 12px var(--accent-glow)'
+              }}
+            />
             <span className="sidebar-logo-text" style={{ fontSize: '1.05rem' }}>MeetingMind</span>
           </div>
         )}
