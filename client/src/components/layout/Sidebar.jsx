@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, CheckSquare, PlusCircle, Sparkles, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, CheckSquare, Sparkles, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -54,18 +54,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* New Meeting Button */}
-        <div style={{ padding: '0.85rem 0.75rem 0.4rem' }}>
-          <NavLink
-            to="/meetings/new"
-            onClick={onClose}
-            className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
-          >
-            <PlusCircle size={16} />
-            <span>New Meeting</span>
-          </NavLink>
-        </div>
+
 
         {/* Nav Links */}
         <nav className="sidebar-nav">
