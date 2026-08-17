@@ -173,7 +173,7 @@ const updateActionItem = async (req, res, next) => {
 
     const { task, owner, dueDate, priority, status } = req.body;
 
-    const { isValid, errors } = validateActionItem(req.body);
+    const { isValid, errors } = validateActionItem(req.body, true);
     if (!isValid) {
       return res.status(400).json({
         success: false,

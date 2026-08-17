@@ -1,12 +1,14 @@
 const VALID_PRIORITIES = ['Low', 'Medium', 'High'];
 const VALID_STATUSES = ['Open', 'In Progress', 'Blocked', 'Completed'];
 
-const validateActionItem = (data) => {
+const validateActionItem = (data, isUpdate = false) => {
   const { task, priority, status } = data;
   const errors = [];
 
-  if (!task || typeof task !== 'string' || !task.trim()) {
-    errors.push('Action item task description is required.');
+  if (!isUpdate || task !== undefined) {
+    if (!task || typeof task !== 'string' || !task.trim()) {
+      errors.push('Action item task description is required.');
+    }
   }
 
   if (priority && !VALID_PRIORITIES.includes(priority)) {

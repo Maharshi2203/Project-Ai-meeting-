@@ -163,10 +163,18 @@ const updateMeeting = async (req, res, next) => {
       }
     });
 
+    const formattedUpdated = {
+      ...updated,
+      discussionPoints: JSON.parse(updated.discussionPoints || '[]'),
+      decisions: JSON.parse(updated.decisions || '[]'),
+      risks: JSON.parse(updated.risks || '[]'),
+      unansweredQuestions: JSON.parse(updated.unansweredQuestions || '[]')
+    };
+
     return res.status(200).json({
       success: true,
       message: 'Meeting updated successfully.',
-      data: { meeting: updated }
+      data: { meeting: formattedUpdated }
     });
   } catch (error) {
     next(error);
@@ -238,7 +246,12 @@ const processMeetingAI = async (req, res, next) => {
       }
     });
 
-    // Delete previous AI-generated open action items for reprocess consistency, or insert new ones
+    // Delete previous action items for this meeting to ensure reprocessing consistency
+    await prisma.actionItem.deleteMany({
+      where: { meetingId: id }
+    });
+
+    // Insert newly extracted action items
     if (aiResult.actionItems && aiResult.actionItems.length > 0) {
       const newActionsData = aiResult.actionItems.map(item => {
         let parsedDate = null;
