@@ -1,93 +1,74 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, CheckSquare, PlusCircle, Sparkles, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, FileText, CheckSquare, PlusCircle, Sparkles, X, LogOut } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
   const navItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Meetings', path: '/meetings', icon: FileText },
     { label: 'Action Tracker', path: '/actions', icon: CheckSquare }
   ];
 
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
+      {/* Mobile Backdrop */}
       {isOpen && (
         <div
           onClick={onClose}
           style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
             zIndex: 140
           }}
         />
       )}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`} style={{
-        width: 'var(--sidebar-width)',
-        backgroundColor: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border-color)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        zIndex: 150,
-        transition: 'transform 0.3s ease'
-      }}>
-        {/* Sidebar Header */}
-        <div style={{
-          padding: '1.25rem 1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--border-color)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--accent-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              boxShadow: '0 4px 10px var(--accent-glow)'
-            }}>
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                MeetingMind
-              </div>
-              <div style={{ fontSize: '0.725rem', color: 'var(--accent-primary)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                AI Tracker
-              </div>
-            </div>
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">
+            <Sparkles size={17} />
           </div>
-
-          <button onClick={onClose} className="mobile-close-btn" style={{ display: 'none', color: 'var(--text-muted)' }}>
-            <X size={20} />
+          <span className="sidebar-logo-text">MeetingMind</span>
+          <button
+            onClick={onClose}
+            style={{ marginLeft: 'auto', display: 'none', color: 'var(--text-muted)' }}
+            className="mobile-close-btn"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        {/* Action Button */}
-        <div style={{ padding: '1.25rem 1.25rem 0.5rem 1.25rem' }}>
+        {/* New Meeting Button */}
+        <div style={{ padding: '0.85rem 0.75rem 0.4rem' }}>
           <NavLink
             to="/meetings/new"
             onClick={onClose}
             className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem' }}
+            style={{ width: '100%', justifyContent: 'center', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
           >
-            <PlusCircle size={18} />
+            <PlusCircle size={16} />
             <span>New Meeting</span>
           </NavLink>
         </div>
 
         {/* Nav Links */}
-        <nav style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <nav className="sidebar-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -95,29 +76,33 @@ const Sidebar = ({ isOpen, onClose }) => {
                 key={item.path}
                 to={item.path}
                 onClick={onClose}
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.85rem',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: isActive ? '600' : '500',
-                  fontSize: '0.925rem',
-                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--accent-light)' : 'transparent',
-                  transition: 'all 0.2s ease'
-                })}
+                className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
               >
-                <Icon size={20} />
+                <Icon size={17} />
                 <span>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
 
-        {/* Footer info badge */}
-        <div style={{ padding: '1.25rem', borderTop: '1px solid var(--border-color)', fontSize: '0.775rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-          Post-Meeting AI Intelligence v1.0
+        {/* User Footer */}
+        <div className="sidebar-footer">
+          <div className="sidebar-user-avatar">
+            {getInitials(user?.name)}
+          </div>
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-name">{user?.name || 'User'}</div>
+            <div className="sidebar-user-role">Admin</div>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Logout"
+            style={{ color: 'var(--text-muted)', padding: '0.3rem', borderRadius: 'var(--radius-sm)', transition: 'color 0.2s ease' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
     </>
